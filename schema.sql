@@ -143,3 +143,61 @@ create policy "Can only view own subs data." on subscriptions for select using (
  */
 drop publication if exists supabase_realtime;
 create publication supabase_realtime for table products, prices;
+
+/**
+* AUTHOR_PROFILES
+* Note: This table contains additional author-specific information
+*/
+create table author_profiles (
+  id uuid references auth.users not null primary key,
+  bio text,
+  expertise text[],
+  target_topics text[],
+  social_links jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+alter table author_profiles enable row level security;
+create policy "Can view own author profile." on author_profiles for select using (auth.uid() = id);
+create policy "Can update own author profile." on author_profiles for update using (auth.uid() = id);
+
+/**
+* BOOKS
+* Note: Authors can have multiple books
+*/
+create table books (
+  id uuid default uuid_generate_v4() primary key,
+  author_id uuid references auth.users not null,
+  title text not null,
+  description text,
+  genre text[],
+  target_audience text[],
+  cover_url text,
+  keywords text[],
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+alter table books enable row level security;
+create policy "Can view own books." on books for select using (auth.uid() = author_id);
+create policy "Can update own books." on books for update using (auth.uid() = author_id);
+create policy "Can create own books." on books for insert with check (auth.uid() = author_id);
+create policy "Can delete own books." on books for delete using (auth.uid() = author_id);
+
+/**
+* PODCAST_MATCHES
+* Note: Stores podcast matches and their relevance scores
+*/
+create table podcast_matches (
+  id uuid default uuid_generate_v4() primary key,
+  author_id uuid references auth.users not null,
+  book_id uuid references books not null,
+  podcast_id text not null,
+  podcast_name text not null,
+  podcast_description text,
+  host_name text,
+  relevance_score decimal,
+  status text default 'pending',
+  matched_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+alter table podcast_matches enable row level security;
+create policy "Can view own matches." on podcast_matches for select using (auth.uid() = author_id);
