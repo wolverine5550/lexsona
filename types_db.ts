@@ -4,28 +4,37 @@ export type Database = {
       author_profiles: {
         Row: {
           id: string
+          first_name: string | null
+          last_name: string | null
           bio: string | null
           expertise: string[] | null
           target_topics: string[] | null
           social_links: { [key: string]: string } | null
+          avatar_url: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id: string
+          first_name?: string | null
+          last_name?: string | null
           bio?: string | null
           expertise?: string[] | null
           target_topics?: string[] | null
           social_links?: { [key: string]: string } | null
+          avatar_url?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
+          first_name?: string | null
+          last_name?: string | null
           bio?: string | null
           expertise?: string[] | null
           target_topics?: string[] | null
           social_links?: { [key: string]: string } | null
+          avatar_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -42,6 +51,7 @@ export type Database = {
           keywords: string[] | null
           created_at: string
           updated_at: string
+          book_links: { [key: string]: string } | null
         }
         Insert: {
           id?: string
@@ -54,6 +64,7 @@ export type Database = {
           keywords?: string[] | null
           created_at?: string
           updated_at?: string
+          book_links?: { [key: string]: string } | null
         }
         Update: {
           id?: string
@@ -66,6 +77,7 @@ export type Database = {
           keywords?: string[] | null
           created_at?: string
           updated_at?: string
+          book_links?: { [key: string]: string } | null
         }
       }
       podcast_matches: {

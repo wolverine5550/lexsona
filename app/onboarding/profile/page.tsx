@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import AuthorProfileForm from '@/components/forms/AuthorProfileForm';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 /**
  * Author Profile Form Page
@@ -38,8 +39,9 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      {/* Profile Form */}
-      <AuthorProfileForm existingProfile={profile} />
+      <ErrorBoundary>
+        <AuthorProfileForm existingProfile={profile} />
+      </ErrorBoundary>
     </div>
   );
 }

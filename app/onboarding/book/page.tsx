@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import BookForm from '@/components/forms/BookForm';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 /**
  * Book Details Form Page
@@ -50,8 +51,10 @@ export default async function BookPage() {
         </p>
       </div>
 
-      {/* Book Form */}
-      <BookForm existingBook={book} />
+      {/* Book Form with Error Boundary */}
+      <ErrorBoundary>
+        <BookForm existingBook={book} />
+      </ErrorBoundary>
     </div>
   );
 }
