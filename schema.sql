@@ -184,20 +184,79 @@ create policy "Can create own books." on books for insert with check (auth.uid()
 create policy "Can delete own books." on books for delete using (auth.uid() = author_id);
 
 /**
+* PODCASTS
+* Note: Caches podcast data from Listen Notes API to reduce API calls
+* and improve performance
+*/
+create table podcasts (
+  id text primary key,                    -- Listen Notes podcast ID
+  title text not null,                    -- Podcast title
+  publisher text not null,                -- Publisher/Network name
+  image text,                            -- Cover image URL
+  description text,                      -- Podcast description
+  website text,                          -- Podcast website URL
+  language text,                         -- Language code (e.g., 'en')
+  categories jsonb,                      -- Array of category objects {id, name}
+  total_episodes integer,                -- Total number of episodes
+  listen_score integer,                  -- Listen Notes popularity score
+  explicit_content boolean,              -- Whether podcast has explicit content
+  latest_episode_id text,                -- ID of most recent episode
+  latest_pub_date_ms bigint,            -- Publication timestamp of latest episode
+  cached_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+/**
 * PODCAST_MATCHES
-* Note: Stores podcast matches and their relevance scores
+* Note: Stores matches between authors' books and podcasts
+* Includes match scoring and outreach status tracking
 */
 create table podcast_matches (
-  id uuid default uuid_generate_v4() primary key,
-  author_id uuid references auth.users not null,
-  book_id uuid references books not null,
-  podcast_id text not null,
-  podcast_name text not null,
-  podcast_description text,
-  host_name text,
-  relevance_score decimal,
-  status text default 'pending',
-  matched_at timestamp with time zone default timezone('utc'::text, now()) not null
+  id uuid primary key default uuid_generate_v4(),
+  author_id uuid references auth.users(id) on delete cascade,
+  book_id uuid references books(id) on delete cascade,
+  podcast_id text references podcasts(id) on delete cascade,
+  score decimal not null,                -- Match relevance score (0-1)
+  match_reasons text[] not null,         -- Array of reasons for the match
+  status text not null check (
+    status in (
+      'pending',                         -- Initial match state
+      'contacted',                       -- Outreach email sent
+      'responded',                       -- Host has responded
+      'scheduled',                       -- Interview scheduled
+      'completed',                       -- Interview completed
+      'rejected',                        -- Host declined/no response
+      'archived'                         -- Match archived by author
+    )
+  ) default 'pending',
+  notes text,                           -- Author's notes about the match
+  last_contacted_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Add indexes for query optimization
+create index if not exists podcasts_latest_pub_date_idx on podcasts(latest_pub_date_ms);
+create index if not exists podcast_matches_author_book_idx on podcast_matches(author_id, book_id);
+create index if not exists podcast_matches_status_idx on podcast_matches(status);
+
+-- Add RLS policies
+alter table podcasts enable row level security;
 alter table podcast_matches enable row level security;
-create policy "Can view own matches." on podcast_matches for select using (auth.uid() = author_id);
+
+-- Podcasts table policies
+create policy "Podcasts are viewable by everyone"
+  on podcasts for select using (true);
+
+-- Podcast matches policies
+create policy "Users can view own matches"
+  on podcast_matches for select using (auth.uid() = author_id);
+
+create policy "Users can create own matches"
+  on podcast_matches for insert with check (auth.uid() = author_id);
+
+create policy "Users can update own matches"
+  on podcast_matches for update using (auth.uid() = author_id);
+
+create policy "Users can delete own matches"
+  on podcast_matches for delete using (auth.uid() = author_id);
