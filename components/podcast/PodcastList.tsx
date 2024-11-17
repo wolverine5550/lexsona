@@ -1,7 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Podcast } from '@/types/podcast';
 import Image from 'next/image';
+import SavePodcastButton from './SavePodcastButton';
+import { createClient } from '@/utils/supabase/client';
+import { useSession } from '@/hooks/useSession';
+import { Star } from 'lucide-react';
 
 interface PodcastListProps {
   podcasts: Podcast[];
@@ -9,18 +14,85 @@ interface PodcastListProps {
   onPodcastSelect?: (podcast: Podcast) => void;
 }
 
+type PodcastStatus = 'saved' | 'favorite' | 'hidden' | 'archived' | null;
+
+interface SavedPodcastRecord {
+  podcast_id: string;
+  status: PodcastStatus;
+}
+
 /**
  * Component to display a list of podcasts with their details
  * Shows podcast image, title, publisher, and basic stats
+ * Filters out hidden podcasts
  */
 function PodcastList({
   podcasts,
   isLoading,
   onPodcastSelect
 }: PodcastListProps) {
+  const { session } = useSession();
+  const [podcastStatuses, setPodcastStatuses] = useState<
+    Record<string, PodcastStatus>
+  >({});
+  const [visiblePodcasts, setVisiblePodcasts] = useState<Podcast[]>(podcasts);
+
+  /**
+   * Load saved/hidden status for all podcasts
+   */
+  useEffect(() => {
+    const loadPodcastStatuses = async () => {
+      if (!session?.user) return;
+
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('saved_podcasts')
+        .select('podcast_id, status')
+        .eq('user_id', session.user.id);
+
+      if (!error && data) {
+        // Type assertion to ensure data is array of SavedPodcastRecord
+        const records = data as SavedPodcastRecord[];
+
+        // Create status map with proper typing
+        const statuses = records.reduce<Record<string, PodcastStatus>>(
+          (acc, item) => ({
+            ...acc,
+            [item.podcast_id]: item.status
+          }),
+          {}
+        );
+
+        setPodcastStatuses(statuses);
+
+        // Filter out hidden podcasts
+        const visible = podcasts.filter(
+          (podcast) => statuses[podcast.id] !== 'hidden'
+        );
+        setVisiblePodcasts(visible);
+      }
+    };
+
+    loadPodcastStatuses();
+  }, [podcasts, session?.user]);
+
+  /**
+   * Handle status changes from SavePodcastButton
+   */
+  const handleStatusChange = (podcastId: string, newStatus: PodcastStatus) => {
+    setPodcastStatuses((prev) => ({
+      ...prev,
+      [podcastId]: newStatus
+    }));
+
+    // If podcast is hidden, remove it from visible list
+    if (newStatus === 'hidden') {
+      setVisiblePodcasts((prev) => prev.filter((p) => p.id !== podcastId));
+    }
+  };
+
   /**
    * Formats the listen score into a readable string
-   * @param score - Listen Notes popularity score (0-100)
    */
   const formatListenScore = (score: number) => {
     if (score >= 90) return 'Very Popular';
@@ -31,8 +103,6 @@ function PodcastList({
 
   /**
    * Truncates text to a specified length with ellipsis
-   * @param text - Text to truncate
-   * @param length - Maximum length before truncation
    */
   const truncateText = (text: string, length: number) => {
     if (text.length <= length) return text;
@@ -63,10 +133,14 @@ function PodcastList({
 
   return (
     <div className="space-y-4">
-      {podcasts.map((podcast) => (
+      {visiblePodcasts.map((podcast) => (
         <div
           key={podcast.id}
-          className="group cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/50"
+          className={`group cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900/50 ${
+            podcastStatuses[podcast.id] === 'favorite'
+              ? 'border-yellow-500/50'
+              : ''
+          }`}
           onClick={() => onPodcastSelect?.(podcast)}
           role="button"
           tabIndex={0}
@@ -80,6 +154,12 @@ function PodcastList({
                 fill
                 className="object-cover"
               />
+              {/* Enhanced favorite indicator with hover effect */}
+              {podcastStatuses[podcast.id] === 'favorite' && (
+                <div className="absolute right-1 top-1 rounded-full bg-yellow-500/90 p-1 transition-all duration-200 hover:scale-110 hover:bg-yellow-400 hover:shadow-lg">
+                  <Star className="h-3 w-3 text-white" />
+                </div>
+              )}
             </div>
 
             {/* Podcast Details */}
@@ -93,18 +173,27 @@ function PodcastList({
               </p>
 
               {/* Podcast Stats */}
-              <div className="flex items-center space-x-4 text-xs text-zinc-500">
-                <span>{podcast.total_episodes} episodes</span>
-                <span>•</span>
-                <span>{formatListenScore(podcast.listen_score)}</span>
-                <span>•</span>
-                <span>{podcast.language}</span>
-                {podcast.explicit_content && (
-                  <>
-                    <span>•</span>
-                    <span className="text-red-500">Explicit</span>
-                  </>
-                )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-xs text-zinc-500">
+                  <span>{podcast.total_episodes} episodes</span>
+                  <span>•</span>
+                  <span>{formatListenScore(podcast.listen_score)}</span>
+                  <span>•</span>
+                  <span>{podcast.language}</span>
+                  {podcast.explicit_content && (
+                    <>
+                      <span>•</span>
+                      <span className="text-red-500">Explicit</span>
+                    </>
+                  )}
+                </div>
+                <SavePodcastButton
+                  podcast={podcast}
+                  initialStatus={podcastStatuses[podcast.id] as PodcastStatus}
+                  onStatusChange={(newStatus) =>
+                    handleStatusChange(podcast.id, newStatus as PodcastStatus)
+                  }
+                />
               </div>
 
               {/* Categories */}

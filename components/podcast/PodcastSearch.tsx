@@ -12,6 +12,8 @@ import LoadingButton from '@/components/ui/LoadingButton';
 import { withErrorBoundary } from '@/components/ui/ErrorBoundary';
 import PodcastList from './PodcastList';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useSearchHistory } from '@/hooks/useSearchHistory';
+import SearchHistory from './SearchHistory';
 
 /**
  * Component for searching and filtering podcasts
@@ -34,6 +36,12 @@ function PodcastSearch() {
   // Add pagination state
   const [currentOffset, setCurrentOffset] = useState(0);
   const RESULTS_PER_PAGE = 10; // Listen Notes default
+
+  // Add search history hook
+  const { recordSearch, recordClick } = useSearchHistory();
+
+  // Add to state declarations
+  const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
 
   /**
    * Calculate current page number and total pages
@@ -80,6 +88,20 @@ function PodcastSearch() {
       // Create Supabase client
       const supabase = createClient();
 
+      // Record search in history and get the search ID
+      const { data: searchRecord } = await supabase
+        .from('search_history')
+        .insert({
+          query: searchQuery,
+          filters,
+          results_count: 0,
+          clicked_results: []
+        })
+        .select()
+        .single();
+
+      setCurrentSearchId(searchRecord?.id || null);
+
       // Prepare search parameters with pagination
       const searchParams: PodcastSearchParams = {
         query: searchQuery,
@@ -89,6 +111,9 @@ function PodcastSearch() {
 
       // Fetch results from Listen Notes with Supabase client
       const searchResults = await searchPodcasts(searchParams, supabase);
+
+      // Record search in history
+      await recordSearch(searchQuery, filters, searchResults.total);
 
       // Cache results in Supabase
       await cachePodcastResults(supabase, searchResults.results);
@@ -105,16 +130,30 @@ function PodcastSearch() {
   };
 
   /**
-   * Handles selecting a podcast from the results
-   * @param podcast - The selected podcast
+   * Enhanced podcast selection handler with click tracking
    */
-  const handlePodcastSelect = (podcast: Podcast) => {
+  const handlePodcastSelect = async (podcast: Podcast) => {
+    if (currentSearchId) {
+      await recordClick(currentSearchId, podcast.id);
+    }
     // We'll implement this later when we add podcast matching
     console.log('Selected podcast:', podcast);
   };
 
+  /**
+   * Handle selecting a previous search
+   */
+  const handleSearchSelect = (query: string, filters: any) => {
+    setSearchQuery(query);
+    setFilters(filters);
+    handleSearch(new Event('submit') as any);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Add SearchHistory above the search form */}
+      <SearchHistory onSearchSelect={handleSearchSelect} className="mb-8" />
+
       {/* Search Form */}
       <form onSubmit={handleSearch} className="space-y-4">
         {/* Search Input */}
