@@ -140,7 +140,7 @@ If you don't intend to use a local Supabase instance for development and testing
 pnpm dlx vercel env pull .env.local
 ```
 
-Running this command will create a new `.env.local` file in your project folder. For security purposes, you will need to set the `SUPABASE_SERVICE_ROLE_KEY` manually from your [Supabase dashboard](https://app.supabase.io/) (`Settings > API`). If you are not using a local Supabase instance, you should also change the `--local` flag to `--linked' or '--project-id <string>' in the `supabase:generate-types` script in `package.json`.(see -> [https://supabase.com/docs/reference/cli/supabase-gen-types-typescript])
+Running this command will create a new `.env.local` file in your project folder. For security purposes, you will need to set the `SUPABASE_SERVICE_ROLE_KEY` manually from your [Supabase dashboard](https://app.supabase.io/) (`Settings > API`). If you are not using a local Supabase instance, you should also change the `--local` flag to `--linked' or '--project-id <string>' in the `supabase:generate-types`script in`package.json`.(see -> [https://supabase.com/docs/reference/cli/supabase-gen-types-typescript])
 
 ### Local development with Supabase
 
@@ -257,3 +257,79 @@ To run the project in live mode and process payments with Stripe, switch Stripe 
 Afterward, you will need to rebuild your production deployment for the changes to take effect. Within your project Dashboard, navigate to the "Deployments" tab, select the most recent deployment, click the overflow menu button (next to the "Visit" button) and select "Redeploy" (do NOT enable the "Use existing Build Cache" option).
 
 To verify you are running in production mode, test checking out with the [Stripe test card](https://stripe.com/docs/testing). The test card should not work.
+
+# OpenAI Integration Setup
+
+## Environment Variables
+
+The application requires OpenAI API credentials to function. Set up your environment variables:
+
+1. Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Configure your OpenAI credentials in `.env`:
+
+```bash
+OPENAI_API_KEY=your-api-key-here
+OPENAI_ORG_ID=optional-org-id-here  # Optional
+```
+
+## Getting OpenAI Credentials
+
+1. Visit [OpenAI's API platform](https://platform.openai.com/)
+2. Create or log into your account
+3. Navigate to API Keys section
+4. Generate a new API key
+5. Copy the key immediately (it won't be shown again)
+
+## Rate Limiting
+
+The application implements rate limiting for OpenAI API calls:
+
+- 50 requests per minute
+- Automatic request queuing
+- Built-in error handling
+
+## Error Handling
+
+The OpenAI client handles common errors:
+
+- Rate limit exceeded
+- Invalid API key
+- Context length exceeded
+- Network errors
+
+## Usage Example
+
+```typescript
+import { openaiClient } from '@/utils/openai';
+
+// Process a chat completion
+const response = await openaiClient.processChatCompletion(
+  [{ role: 'user', content: 'Your prompt here' }],
+  {
+    temperature: 0.7,
+    maxTokens: 500
+  }
+);
+```
+
+## Troubleshooting
+
+1. **Rate Limit Errors**
+
+   - Check your OpenAI plan limits
+   - Adjust rate limiting in `utils/openai.ts`
+
+2. **API Key Issues**
+
+   - Verify key in .env file
+   - Check for whitespace in key
+   - Ensure key has proper permissions
+
+3. **Context Length Errors**
+   - Reduce input length
+   - Use a model with larger context window
