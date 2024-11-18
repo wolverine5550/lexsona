@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { Podcast } from '@/types/podcast';
 import Image from 'next/image';
@@ -116,6 +117,8 @@ function PodcastList({
         {[...Array(3)].map((_, i) => (
           <div
             key={i}
+            role="article"
+            aria-label="loading"
             className="animate-pulse rounded-lg border border-zinc-800 bg-zinc-900 p-4"
           >
             <div className="flex items-center space-x-4">

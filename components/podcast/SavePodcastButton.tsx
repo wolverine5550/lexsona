@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Podcast } from '@/types/podcast';

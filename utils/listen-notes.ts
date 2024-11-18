@@ -8,8 +8,8 @@ import {
 const LISTEN_NOTES_API_KEY = process.env.NEXT_PUBLIC_LISTEN_NOTES_API_KEY;
 const BASE_URL = 'https://listen-api.listennotes.com/api/v2';
 
-// Rate limiting configuration
-const RATE_LIMIT = {
+// Make RATE_LIMIT exportable
+export const RATE_LIMIT = {
   requests: 10, // Number of requests
   perSeconds: 60, // Time window in seconds
   timeout: 1000 // Timeout between requests in ms

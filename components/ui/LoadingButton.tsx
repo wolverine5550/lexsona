@@ -1,37 +1,26 @@
-import { Loader2 } from 'lucide-react';
-import { ButtonHTMLAttributes } from 'react';
+import React from 'react';
 
-interface LoadingButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  isLoading: boolean;
-  loadingText?: string;
+interface LoadingButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  isLoading?: boolean;
   children: React.ReactNode;
 }
 
-/**
- * Enhanced loading button component
- * Shows loading spinner and optional loading text when in loading state
- */
 export default function LoadingButton({
-  isLoading,
-  loadingText = 'Loading...',
+  isLoading = false,
   children,
-  className = '',
-  disabled,
   ...props
 }: LoadingButtonProps) {
   return (
     <button
-      className={`flex min-w-[120px] items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-600 disabled:text-zinc-400 ${className}`}
-      disabled={disabled || isLoading}
       {...props}
+      disabled={isLoading}
+      type="submit"
+      className={`flex items-center justify-center space-x-2 rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${props.className || ''}`}
     >
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span>{loadingText}</span>
-        </>
-      ) : (
-        children
+      {children}
+      {isLoading && (
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
       )}
     </button>
   );

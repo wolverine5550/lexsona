@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState } from 'react';
 import { searchPodcasts, cachePodcastResults } from '@/utils/listen-notes';
 import { createClient } from '@/utils/supabase/client';
@@ -121,9 +122,9 @@ function PodcastSearch() {
       // Update state with results
       setResults(searchResults);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to search podcasts'
-      );
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to search podcasts';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +156,7 @@ function PodcastSearch() {
       <SearchHistory onSearchSelect={handleSearchSelect} className="mb-8" />
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="space-y-4">
+      <form onSubmit={handleSearch} className="space-y-4" role="form">
         {/* Search Input */}
         <div>
           <label
