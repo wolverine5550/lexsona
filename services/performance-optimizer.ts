@@ -1,173 +1,76 @@
-import { createClient } from '@/utils/supabase/client';
 import OpenAI from 'openai';
-import pLimit from 'p-limit';
-import type {
-  PodcastMatch,
-  BatchProcessResult,
-  Podcast
-} from '@/types/podcast';
+import { createClient } from '@/utils/supabase/client';
 
-/**
- * Service to handle performance optimizations for the recommendation system
- */
+interface PerformanceMetrics {
+  responseTime: number;
+  successRate: number;
+  errorCount: number;
+}
+
+interface PerformanceAnalysis {
+  metrics: PerformanceMetrics;
+  recommendations: string[];
+}
+
 export class PerformanceOptimizer {
-  private static supabase = createClient();
-  private static openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
-
-  // Limit concurrent API calls
-  private static limit = pLimit(5);
-  private static readonly BATCH_SIZE = 50;
+  public static supabase = createClient();
 
   /**
-   * Process recommendations in batches with parallel execution
+   * Track performance metrics
    */
-  public static async batchProcessRecommendations(
-    userIds: string[]
-  ): Promise<Record<string, PodcastMatch[]>> {
-    const results: Record<string, PodcastMatch[]> = {};
+  public static async trackMetrics(metrics: PerformanceMetrics): Promise<void> {
+    const { error } = await this.supabase.from('performance_metrics').insert({
+      response_time: metrics.responseTime,
+      success_rate: metrics.successRate,
+      error_count: metrics.errorCount,
+      timestamp: new Date().toISOString()
+    });
 
-    // Split users into batches
-    for (let i = 0; i < userIds.length; i += this.BATCH_SIZE) {
-      const batch = userIds.slice(i, i + this.BATCH_SIZE);
-
-      // Process batch in parallel
-      const batchResults = await Promise.all(
-        batch.map((userId) =>
-          this.limit(async () => {
-            const matches = await this.getRecommendationsForUser(userId);
-            return { userId, matches } as BatchProcessResult;
-          })
-        )
-      );
-
-      // Combine results
-      batchResults.forEach(({ userId, matches }) => {
-        results[userId] = matches;
-      });
+    if (error) {
+      throw new Error(`Failed to store metrics: ${error.message}`);
     }
-
-    return results;
   }
 
   /**
-   * Stream podcast recommendations as they become available
+   * Analyze performance data and provide recommendations
    */
-  public static async *streamRecommendations(
-    userId: string,
-    batchSize = 10
-  ): AsyncGenerator<PodcastMatch[], void, unknown> {
-    const { data: preferences } = await this.supabase
-      .from('user_preferences')
+  public static async analyzePerformance(): Promise<PerformanceAnalysis> {
+    const { data, error } = await this.supabase
+      .from('performance_metrics')
       .select('*')
-      .eq('userId', userId)
-      .single();
+      .order('timestamp', { ascending: false })
+      .limit(100);
 
-    if (!preferences) {
-      return;
+    if (error) {
+      throw new Error(`Failed to fetch metrics: ${error.message}`);
     }
 
-    let offset = 0;
-    while (true) {
-      // Fetch podcast batch with optimized query
-      const { data: podcasts, error } = await this.supabase
-        .from('podcasts')
-        .select(
-          `
-          id,
-          title,
-          description,
-          categories,
-          rating,
-          style
-        `
-        )
-        .order('rating', { ascending: false })
-        .range(offset, offset + batchSize - 1);
+    // Calculate aggregate metrics
+    const metrics = this.calculateAggregateMetrics(data);
 
-      if (error || !podcasts?.length) {
-        break;
-      }
+    // Get recommendations
+    const recommendations = await this.generateRecommendations(metrics);
 
-      // Process batch in parallel
-      const matches = await Promise.all(
-        podcasts.map((podcast) =>
-          this.limit(() =>
-            this.calculateMatchScore(podcast as Podcast, preferences)
-          )
-        )
-      );
-
-      yield matches.filter((match: PodcastMatch) => match.score > 0.5);
-
-      if (podcasts.length < batchSize) {
-        break;
-      }
-
-      offset += batchSize;
-    }
+    return {
+      metrics,
+      recommendations
+    };
   }
 
-  /**
-   * Optimize database queries with materialized views
-   */
-  private static async getRecommendationsForUser(
-    userId: string
-  ): Promise<PodcastMatch[]> {
-    // Use materialized view for faster querying
-    const { data: recommendations } = await this.supabase
-      .from('podcast_recommendations_mv')
-      .select('*')
-      .eq('user_id', userId)
-      .order('match_score', { ascending: false })
-      .limit(20);
-
-    return (recommendations || []).map((rec) => ({
-      podcast: rec.podcast_id,
-      score: rec.match_score,
-      matchReason: 'Materialized view match'
-    }));
+  private static calculateAggregateMetrics(data: any[]): PerformanceMetrics {
+    return {
+      responseTime:
+        data.reduce((acc, m) => acc + m.response_time, 0) / data.length,
+      successRate:
+        data.reduce((acc, m) => acc + m.success_rate, 0) / data.length,
+      errorCount: data.reduce((acc, m) => acc + m.error_count, 0)
+    };
   }
 
-  /**
-   * Calculate match score with optimized OpenAI calls
-   */
-  private static async calculateMatchScore(
-    podcast: Podcast,
-    preferences: any
-  ): Promise<PodcastMatch> {
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: 'Calculate podcast match score based on user preferences.'
-          },
-          {
-            role: 'user',
-            content: JSON.stringify({ podcast, preferences })
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 50
-      });
-
-      const score = parseFloat(response.choices[0].message?.content || '0');
-
-      return {
-        podcast: podcast.id,
-        score,
-        matchReason: 'AI-based matching'
-      };
-    } catch (error) {
-      console.error('Error calculating match score:', error);
-      return {
-        podcast: podcast.id,
-        score: 0,
-        matchReason: 'Error in calculation'
-      };
-    }
+  private static async generateRecommendations(
+    metrics: PerformanceMetrics
+  ): Promise<string[]> {
+    // Implementation here
+    return ['Optimize database queries', 'Add caching layer'];
   }
 }

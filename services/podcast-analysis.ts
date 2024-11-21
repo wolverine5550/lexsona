@@ -146,24 +146,41 @@ export class PodcastAnalysisService {
   }
 
   // Private helper methods
-  private static parseFeatures(analysisText: string): PodcastFeatures {
-    // Implement full feature parsing with required fields
-    return {
-      id: '', // Will be overwritten
-      mainTopics: [], // Required field
-      contentStyle: {
-        isInterview: false,
-        isNarrative: false,
-        isEducational: false,
-        isDebate: false
-      },
-      complexityLevel: 'intermediate',
-      averageEpisodeLength: 0, // Will be overwritten
-      updateFrequency: 'weekly', // Will be overwritten
-      productionQuality: 0,
-      hostingStyle: [],
-      languageComplexity: 0
-    };
+  private static parseFeatures(analysisText: any): PodcastFeatures {
+    try {
+      // Get the actual content from the OpenAI response
+      const content = analysisText.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error('Invalid OpenAI response structure');
+      }
+
+      // Parse the JSON content
+      const parsed = JSON.parse(content);
+
+      return {
+        id: '', // Will be overwritten
+        mainTopics: parsed.mainTopics || [],
+        contentStyle: {
+          isInterview: parsed.contentStyle?.isInterview || false,
+          isNarrative: parsed.contentStyle?.isNarrative || false,
+          isEducational: parsed.contentStyle?.isEducational || false,
+          isDebate: parsed.contentStyle?.isDebate || false
+        },
+        complexityLevel: parsed.complexityLevel || 'intermediate',
+        averageEpisodeLength: 0, // Will be overwritten
+        updateFrequency: 'weekly', // Will be overwritten
+        productionQuality: parsed.productionQuality || 0,
+        hostingStyle: parsed.hostingStyle || [],
+        languageComplexity: parsed.languageComplexity || 0
+      };
+    } catch (error) {
+      console.error('Failed to parse features:', error);
+      throw new AnalysisError(
+        'Failed to parse analysis response',
+        'EXTRACTION_ERROR',
+        error
+      );
+    }
   }
 
   private static parseEpisodeAnalysis(

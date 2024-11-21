@@ -16,6 +16,12 @@ export interface Podcast {
     name: string;
   }>;
   total_episodes: number;
+  average_duration: number;
+  publish_frequency: string;
+  rating: number;
+  rss_feed: string;
+  image_url: string;
+  status: string;
   listen_score: number;
   explicit_content: boolean;
   latest_episode_id: string;
@@ -65,4 +71,9 @@ export interface PodcastSearchParams {
   published_after?: number;
   only_in?: string;
   safe_mode?: 0 | 1;
+}
+
+export interface BatchProcessResult {
+  userId: string;
+  matches: PodcastMatch[];
 }

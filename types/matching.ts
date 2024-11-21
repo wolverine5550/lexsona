@@ -17,11 +17,11 @@ export const MATCH_WEIGHTS = {
  * Individual factor scores for a podcast match
  */
 export interface MatchFactors {
-  topicScore: number; // 0-1: How well topics match
-  styleScore: number; // 0-1: How well style preferences match
-  lengthScore: number; // 0-1: How well length matches preference
-  complexityScore: number; // 0-1: How well complexity matches user level
-  qualityScore: number; // 0-1: Overall podcast quality score
+  styleScore: number;
+  topicScore: number;
+  lengthScore: number;
+  complexityScore: number;
+  qualityScore: number;
 }
 
 /**
@@ -29,10 +29,10 @@ export interface MatchFactors {
  */
 export interface PodcastMatch {
   podcastId: string;
-  overallScore: number; // 0-1: Weighted average of all factors
   factors: MatchFactors;
-  matchReasons: string[]; // Human-readable explanations
-  confidence: number; // 0-1: Confidence in the match
+  overallScore: number;
+  matchReasons: string[];
+  confidence: number;
 }
 
 /**
@@ -71,3 +71,25 @@ export const validateWeights = (weights: typeof MATCH_WEIGHTS): boolean => {
 export const validateScore = (score: number): boolean => {
   return score >= 0 && score <= 1;
 };
+
+/**
+ * Processed results for matching operations
+ */
+export interface ProcessedResults {
+  topMatches: PodcastMatch[];
+  totalMatches: number;
+  averageConfidence: number;
+  processingTime: number;
+  appliedFilters: string[];
+}
+
+export interface UserPreferences {
+  topics: string[];
+  stylePreferences: {
+    isInterviewPreferred: boolean;
+    isStorytellingPreferred: boolean;
+    isEducationalPreferred: boolean;
+    isDebatePreferred: boolean;
+  };
+  preferredLength: 'short' | 'medium' | 'long';
+}

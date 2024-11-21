@@ -5,14 +5,12 @@
 /**
  * Types of user feedback
  */
-export type FeedbackType =
-  | 'like' // User liked the podcast
-  | 'dislike' // User disliked the podcast
-  | 'not_interested' // User isn't interested
-  | 'report' // User reports inappropriate content
-  | 'save' // User saved for later
-  | 'listen' // User started listening
-  | 'complete'; // User finished listening
+export enum FeedbackType {
+  RELEVANCE = 'RELEVANCE',
+  LIKE = 'like',
+  SAVE = 'save',
+  COMPLETE = 'complete'
+}
 
 /**
  * Podcast style types
@@ -44,7 +42,7 @@ export interface FeedbackDetails {
   userId: string;
   podcastId: string;
   feedbackType: FeedbackType;
-  rating?: number; // 1-5 rating if provided
+  rating: number;
   comment?: string; // Optional user comment
   categories?: string[]; // Categories user associates with podcast
   timestamp: string;

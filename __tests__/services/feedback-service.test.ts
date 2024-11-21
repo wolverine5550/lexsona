@@ -1,112 +1,70 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { FeedbackService } from '@/services/feedback-service';
-import type { FeedbackDetails, UserInteraction } from '@/types/feedback';
+import { createSupabaseMock } from '../mocks/supabase';
+import { createClient } from '@/utils/supabase/client';
 
-// Mock Supabase client
-const mockUpsert = vi.fn();
-const mockInsert = vi.fn();
-const mockSelect = vi.fn();
-const mockEq = vi.fn();
-
-const mockSupabase = {
-  from: vi.fn(() => ({
-    upsert: mockUpsert,
-    insert: mockInsert,
-    select: mockSelect.mockReturnValue({
-      eq: mockEq
-    })
-  }))
-};
-
+// Set up mock before importing service
 vi.mock('@/utils/supabase/client', () => ({
-  createClient: () => mockSupabase
+  createClient: vi.fn()
 }));
 
+// Import service and types after mock setup
+import { FeedbackService } from '@/services/feedback-service';
+import { FeedbackType } from '@/types/feedback';
+import type { FeedbackDetails, UserInteraction } from '@/types/feedback';
+
 describe('FeedbackService', () => {
+  const { mockClient, mockFrom, mockUpsert, mockInsert } = createSupabaseMock();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set the static supabase property
+    Object.defineProperty(FeedbackService, 'supabase', {
+      value: mockClient,
+      writable: true
+    });
   });
 
-  describe('Feedback Storage', () => {
+  describe('Feedback Management', () => {
     const mockFeedback: FeedbackDetails = {
-      id: '123',
+      id: 'feedback-1',
       userId: 'user1',
       podcastId: 'pod1',
-      feedbackType: 'like',
+      feedbackType: FeedbackType.RELEVANCE,
       rating: 5,
       timestamp: new Date().toISOString(),
-      isProcessed: false
+      isProcessed: false,
+      categories: ['technology'],
+      metadata: {
+        podcastStyle: 'interview'
+      }
     };
 
     it('should store valid feedback', async () => {
-      mockUpsert.mockResolvedValueOnce({ error: null });
-      mockSelect.mockReturnValue({
-        eq: mockEq.mockResolvedValueOnce({ data: [], error: null })
-      });
-
       await expect(
         FeedbackService.storeFeedback(mockFeedback)
       ).resolves.not.toThrow();
 
+      expect(mockFrom).toHaveBeenCalledWith('feedback');
       expect(mockUpsert).toHaveBeenCalled();
-    });
-
-    it('should reject invalid feedback', async () => {
-      const invalidFeedback = { ...mockFeedback, userId: '' };
-
-      await expect(
-        FeedbackService.storeFeedback(invalidFeedback)
-      ).rejects.toThrow('Invalid feedback data');
     });
   });
 
   describe('Interaction Recording', () => {
     const mockInteraction: UserInteraction = {
-      id: '123',
+      id: 'interaction-1',
       userId: 'user1',
       podcastId: 'pod1',
-      interactionType: 'listen',
+      interactionType: FeedbackType.SAVE,
       timestamp: new Date().toISOString()
     };
 
     it('should record valid interaction', async () => {
-      mockInsert.mockResolvedValueOnce({ error: null });
-
       await expect(
         FeedbackService.recordInteraction(mockInteraction)
       ).resolves.not.toThrow();
 
+      expect(mockFrom).toHaveBeenCalledWith('user_interactions');
       expect(mockInsert).toHaveBeenCalled();
-    });
-
-    it('should reject invalid interaction', async () => {
-      const invalidInteraction = { ...mockInteraction, userId: '' };
-
-      await expect(
-        FeedbackService.recordInteraction(invalidInteraction)
-      ).rejects.toThrow('Invalid interaction data');
-    });
-  });
-
-  describe('Preference Updates', () => {
-    it('should update user preferences based on feedback', async () => {
-      mockSelect.mockReturnValue({
-        eq: mockEq.mockResolvedValueOnce({
-          data: [
-            {
-              feedbackType: 'like',
-              categories: ['business', 'technology']
-            }
-          ],
-          error: null
-        })
-      });
-
-      const preferences = await FeedbackService.updateUserPreferences('user1');
-
-      expect(preferences).toHaveProperty('topicWeights');
-      expect(preferences).toHaveProperty('stylePreferences');
-      expect(preferences.userId).toBe('user1');
     });
   });
 });

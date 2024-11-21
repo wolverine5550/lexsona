@@ -1,93 +1,46 @@
-import { useState, useEffect } from 'react';
-import { useSession } from '@/hooks/useSession';
-import type { UserPreferences } from '@/types/preferences';
+import { useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
-/**
- * Custom hook for managing user preferences
- * Handles loading, saving, and caching of preferences
- */
-export function usePreferences() {
-  // Get current user session
-  const { session } = useSession();
+interface Preferences {
+  userId: string;
+  preferred_categories?: string[];
+  // Add other preference fields as needed
+}
 
-  // State management
-  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const usePreferences = (userId: string) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const supabase = createClient();
 
-  /**
-   * Fetches user preferences from the API
-   */
-  const fetchPreferences = async () => {
+  const savePreferences = async (preferences: Partial<Preferences>) => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/preferences');
-      if (!response.ok) {
-        throw new Error('Failed to fetch preferences');
-      }
+      const { error: supabaseError } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: userId,
+          ...preferences,
+          updated_at: new Date().toISOString()
+        });
 
-      const data = await response.json();
-      setPreferences(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      console.error('Error fetching preferences:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Saves user preferences to the API
-   */
-  const savePreferences = async (
-    newPreferences: Omit<
-      UserPreferences,
-      'id' | 'userId' | 'createdAt' | 'updatedAt'
-    >
-  ) => {
-    try {
-      setError(null);
-
-      const response = await fetch('/api/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPreferences)
-      });
-
-      if (!response.ok) {
+      if (supabaseError) {
         throw new Error('Failed to save preferences');
       }
 
-      const data = await response.json();
-      setPreferences(data);
-
-      return data;
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      console.error('Error saving preferences:', err);
+      setError(err as Error);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
-
-  /**
-   * Load preferences when user session changes
-   */
-  useEffect(() => {
-    if (session?.user) {
-      fetchPreferences();
-    } else {
-      setPreferences(null);
-      setIsLoading(false);
-    }
-  }, [session?.user?.id]);
 
   return {
-    preferences,
-    isLoading,
+    loading,
     error,
-    savePreferences,
-    refreshPreferences: fetchPreferences
+    savePreferences
   };
-}
+};

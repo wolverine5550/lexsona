@@ -1,26 +1,17 @@
 import { renderHook, act } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { usePreferences } from '@/hooks/usePreferences';
-import type { StylePreferences } from '@/types/preferences';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock complete style preferences
-const mockStylePreferences: StylePreferences = {
-  isInterviewPreferred: true,
-  isStorytellingPreferred: false,
-  isEducationalPreferred: false,
-  isDebatePreferred: false
+// Mock Supabase client
+const mockUpsert = vi.fn();
+const mockSupabase = {
+  from: vi.fn(() => ({
+    upsert: mockUpsert
+  }))
 };
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
-// Mock useSession
-vi.mock('@/hooks/useSession', () => ({
-  useSession: () => ({
-    session: { user: { id: 'test-user' } },
-    isLoading: false
-  })
+vi.mock('@/utils/supabase/client', () => ({
+  createClient: () => mockSupabase
 }));
 
 describe('usePreferences', () => {
@@ -28,89 +19,45 @@ describe('usePreferences', () => {
     vi.clearAllMocks();
   });
 
-  it('should fetch preferences on mount', async () => {
-    // Mock successful API response with complete style preferences
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          id: '1',
-          topics: ['technology'],
-          preferredLength: 'medium',
-          stylePreferences: mockStylePreferences
-        })
-    });
-
-    const { result } = renderHook(() => usePreferences());
-
-    // Should start loading
-    expect(result.current.isLoading).toBe(true);
-
-    // Wait for fetch to complete
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    // Should have loaded preferences
-    expect(result.current.preferences).toEqual({
-      id: '1',
-      topics: ['technology'],
-      preferredLength: 'medium',
-      stylePreferences: mockStylePreferences
-    });
-    expect(result.current.isLoading).toBe(false);
-  });
-
   it('should handle save preferences', async () => {
-    // Mock successful save with complete style preferences
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          id: '1',
-          topics: ['technology'],
-          preferredLength: 'medium',
-          stylePreferences: mockStylePreferences
-        })
-    });
+    // Mock successful upsert
+    mockUpsert.mockResolvedValueOnce({ error: null });
 
-    const { result } = renderHook(() => usePreferences());
+    const { result } = renderHook(() => usePreferences('user1'));
 
-    // Save new preferences
     await act(async () => {
       await result.current.savePreferences({
-        topics: ['technology'],
-        preferredLength: 'medium',
-        stylePreferences: mockStylePreferences
+        preferred_categories: ['technology', 'business']
       });
     });
 
-    // Verify API call
-    expect(mockFetch).toHaveBeenCalledWith('/api/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topics: ['technology'],
-        preferredLength: 'medium',
-        stylePreferences: mockStylePreferences
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'user1',
+        preferred_categories: ['technology', 'business']
       })
-    });
+    );
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
   });
 
   it('should handle errors', async () => {
-    // Mock API error
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500
-    });
+    // Mock failed upsert
+    mockUpsert.mockResolvedValueOnce({ error: new Error('Failed to save') });
 
-    const { result } = renderHook(() => usePreferences());
+    const { result } = renderHook(() => usePreferences('user1'));
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      try {
+        await result.current.savePreferences({
+          preferred_categories: ['technology']
+        });
+      } catch (error) {
+        // Expected error
+      }
     });
 
     expect(result.current.error).toBeTruthy();
-    expect(result.current.isLoading).toBe(false);
+    expect(result.current.loading).toBe(false);
   });
 });

@@ -1,159 +1,135 @@
 import { createClient } from '@/utils/supabase/client';
-import {
-  promptTemplates,
-  getLatestPromptVersion
-} from '@/utils/prompt-templates';
 import type { PromptTemplate, PromptVersion } from '@/types/prompt';
 
-/**
- * Service for managing prompt templates and their versions
- */
 export class PromptService {
-  /**
-   * Stores a new prompt template version in the database
-   * @param template - The prompt template to store
-   * @returns The stored template ID
-   */
-  static async storeTemplate(template: PromptTemplate): Promise<string> {
-    const supabase = createClient();
+  private static supabase = createClient();
+  private static readonly TEMPLATES_TABLE = 'prompt_templates';
+  private static readonly METRICS_TABLE = 'prompt_metrics';
 
-    const { data, error } = await supabase
-      .from('prompt_templates')
+  /**
+   * Store a new template version
+   */
+  public static async storeTemplate(template: PromptTemplate): Promise<string> {
+    const { data, error } = await this.supabase
+      .from(this.TEMPLATES_TABLE)
       .insert({
         version: template.version,
         template: template.template,
         created_at: new Date().toISOString()
       })
-      .select('id')
+      .select()
       .single();
 
-    if (error) {
-      console.error('Error storing prompt template:', error);
-      throw new Error('Failed to store prompt template');
+    if (error || !data) {
+      throw new Error(`Failed to store template: ${error?.message}`);
     }
 
     return data.id;
   }
 
   /**
-   * Retrieves a prompt template by version
-   * @param version - The version to retrieve
-   * @returns The prompt template
+   * Retrieve a template by version
    */
-  static async getTemplate(version: PromptVersion): Promise<PromptTemplate> {
-    // First check in-memory templates
-    if (promptTemplates[version]) {
-      return promptTemplates[version];
-    }
-
-    // If not found, check database
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('prompt_templates')
+  public static async getTemplate(
+    version: PromptVersion
+  ): Promise<PromptTemplate> {
+    const { data, error } = await this.supabase
+      .from(this.TEMPLATES_TABLE)
       .select()
       .eq('version', version)
       .single();
 
     if (error || !data) {
-      console.error('Error fetching prompt template:', error);
-      throw new Error(`Prompt template version ${version} not found`);
+      throw new Error('Template not found');
     }
 
     return {
-      version: data.version as PromptVersion,
+      version: data.version,
       template: data.template,
-      validate: promptTemplates.v1.validate, // Use base validation
-      format: promptTemplates.v1.format // Use base formatting
+      validate: () => true,
+      format: (vars) => data.template
     };
   }
 
   /**
-   * Gets the performance metrics for a prompt version
-   * @param version - The version to analyze
-   * @returns Performance metrics
+   * Record metrics for a template version
    */
-  static async getVersionMetrics(version: PromptVersion) {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from('prompt_metrics')
-      .select(
-        `
-        success_rate,
-        avg_relevance_score,
-        total_uses,
-        error_rate,
-        avg_response_time
-      `
-      )
-      .eq('version', version)
-      .single();
-
-    if (error) {
-      console.error('Error fetching prompt metrics:', error);
-      throw new Error('Failed to fetch prompt metrics');
-    }
-
-    return data;
-  }
-
-  /**
-   * Records metrics for a prompt usage
-   */
-  static async recordMetrics(
+  public static async recordMetrics(
     version: PromptVersion,
     metrics: {
       success: boolean;
-      relevanceScore?: number;
+      relevanceScore: number;
       responseTime: number;
-      error?: string;
     }
   ): Promise<void> {
-    const supabase = createClient();
-
-    // Create metrics record
-    const metricsRecord = {
+    const { error } = await this.supabase.from(this.METRICS_TABLE).insert({
       version,
-      success_rate: metrics.success ? 1 : 0,
-      avg_relevance_score: metrics.relevanceScore || 0,
-      total_uses: 1,
-      error_rate: metrics.error ? 1 : 0,
-      avg_response_time: metrics.responseTime,
-      last_used_at: new Date().toISOString()
-    };
-
-    const { error } = await supabase
-      .from('prompt_metrics')
-      .upsert(metricsRecord, {
-        onConflict: 'version'
-      });
+      success: metrics.success,
+      relevance_score: metrics.relevanceScore,
+      response_time: metrics.responseTime,
+      created_at: new Date().toISOString()
+    });
 
     if (error) {
-      console.error('Error recording prompt metrics:', error);
-      // Don't throw - metrics recording should not break main flow
+      throw new Error(`Failed to record metrics: ${error.message}`);
     }
   }
 
   /**
-   * Gets the recommended prompt version based on performance
-   * @returns The recommended version
+   * Get aggregated metrics for a template version
    */
-  static async getRecommendedVersion(): Promise<PromptVersion> {
-    const supabase = createClient();
+  public static async getVersionMetrics(version: PromptVersion): Promise<{
+    version: string;
+    success_rate: number;
+    avg_relevance_score: number;
+    total_uses: number;
+  }> {
+    const { data, error } = await this.supabase
+      .from(this.METRICS_TABLE)
+      .select()
+      .eq('version', version);
 
-    // Get metrics for all versions
-    const { data, error } = await supabase
-      .from('prompt_metrics')
+    if (error) {
+      throw new Error(`Failed to get metrics: ${error.message}`);
+    }
+
+    const metrics = data || [];
+    const totalUses = metrics.length;
+
+    // Only count successful metrics
+    const successfulMetrics = metrics.filter((m) => m.success);
+    const successCount = successfulMetrics.length;
+
+    // Calculate average from successful metrics only
+    const totalRelevanceScore = successfulMetrics.reduce(
+      (sum, m) => sum + (m.relevance_score || 0),
+      0
+    );
+
+    return {
+      version,
+      success_rate: totalUses ? successCount / totalUses : 0,
+      avg_relevance_score: successCount
+        ? totalRelevanceScore / successCount
+        : 0,
+      total_uses: totalUses
+    };
+  }
+
+  /**
+   * Get the recommended template version based on performance
+   */
+  public static async getRecommendedVersion(): Promise<PromptVersion> {
+    const { data, error } = await this.supabase
+      .from(this.METRICS_TABLE)
       .select()
       .order('success_rate', { ascending: false })
-      .order('avg_relevance_score', { ascending: false })
       .limit(1);
 
     if (error || !data?.length) {
-      // Fall back to latest version if no metrics
-      return getLatestPromptVersion();
+      throw new Error('Failed to get recommended version');
     }
 
-    return data[0].version as PromptVersion;
+    return data[0].version;
   }
 }

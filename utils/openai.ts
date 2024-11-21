@@ -1,7 +1,6 @@
 import OpenAI from 'openai';
 import { rateLimit } from '@/utils/rate-limit';
 import type {
-  ChatCompletion,
   ChatMessage,
   OpenAIOptions,
   OpenAIErrorResponse
@@ -9,31 +8,25 @@ import type {
 
 // Constants for rate limiting
 const RATE_LIMIT = {
-  requests: 50, // Number of requests allowed
-  perSeconds: 60, // Time window in seconds
-  timeout: 100 // Timeout between requests in ms
+  requests: 50,
+  perSeconds: 60,
+  timeout: 100
 };
 
-/**
- * Enhanced OpenAI client with better error handling and type safety
- */
-class EnhancedOpenAIClient {
+export class EnhancedOpenAIClient {
   private client: OpenAI;
   private limiter: ReturnType<typeof rateLimit>;
 
-  constructor() {
-    // Validate API key presence
-    if (!process.env.OPENAI_API_KEY) {
+  constructor(apiKey: string = process.env.OPENAI_API_KEY || '') {
+    if (!apiKey) {
       throw new Error('OpenAI API key is not configured');
     }
 
-    // Initialize OpenAI client
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
       organization: process.env.OPENAI_ORG_ID
     });
 
-    // Initialize rate limiter
     this.limiter = rateLimit(RATE_LIMIT.requests, RATE_LIMIT.perSeconds * 1000);
   }
 
@@ -103,5 +96,12 @@ class EnhancedOpenAIClient {
   }
 }
 
-// Export singleton instance
-export const openaiClient = new EnhancedOpenAIClient();
+// Export a function to create the client instead of a singleton
+let clientInstance: EnhancedOpenAIClient | null = null;
+
+export function getOpenAIClient(): EnhancedOpenAIClient {
+  if (!clientInstance) {
+    clientInstance = new EnhancedOpenAIClient();
+  }
+  return clientInstance;
+}
