@@ -77,3 +77,64 @@ export interface BatchProcessResult {
   userId: string;
   matches: PodcastMatch[];
 }
+
+/**
+ * Defines the level of audience expertise a podcast targets
+ */
+export type AudienceLevel = 'beginner' | 'intermediate' | 'expert' | 'mixed';
+
+/**
+ * Defines the typical style of podcast host interaction
+ */
+export type HostStyle =
+  | 'conversational'
+  | 'interview'
+  | 'educational'
+  | 'debate'
+  | 'storytelling';
+
+/**
+ * Represents the depth of topic coverage in a podcast
+ */
+export type TopicDepth = 'surface' | 'moderate' | 'deep' | 'comprehensive';
+
+/**
+ * Core podcast information from Listen Notes API
+ */
+export interface PodcastBase {
+  id: string;
+  title: string;
+  description: string;
+  publisher: string;
+  language: string;
+  categories: string[];
+  totalEpisodes: number;
+  averageEpisodeLength: number;
+  website?: string;
+  listenNotesUrl: string;
+}
+
+/**
+ * Enhanced podcast analysis including AI-derived insights
+ */
+export interface PodcastAnalysis {
+  podcastId: string;
+  hostStyle: HostStyle;
+  audienceLevel: AudienceLevel;
+  topicDepth: TopicDepth;
+  guestRequirements: {
+    minimumExpertise: AudienceLevel;
+    preferredTopics: string[];
+    communicationPreference: string[];
+  };
+  topicalFocus: string[];
+  confidence: number;
+  lastAnalyzed: Date;
+}
+
+/**
+ * Combined podcast data with both base info and analysis
+ */
+export interface EnhancedPodcast extends PodcastBase {
+  analysis?: PodcastAnalysis;
+}

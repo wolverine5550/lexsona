@@ -7,19 +7,35 @@ import {
 } from '@/types/author';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
+/**
+ * Initialize Supabase client for database operations
+ * Uses environment variables for configuration
+ */
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+/**
+ * Initialize OpenAI client for AI analysis
+ */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+/**
+ * AuthorAnalyzer class handles the analysis of author profiles using AI
+ * and manages caching of results for performance optimization
+ */
 export class AuthorAnalyzer {
-  private static readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+  // Cache duration set to 7 days to balance freshness and API usage
+  private static readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
 
+  /**
+   * Generates a structured prompt for OpenAI analysis
+   * @param author - The author profile to analyze
+   * @returns A formatted string prompt for AI analysis
+   */
   private static generateAnalysisPrompt(author: AuthorProfile): string {
     return `
       Please analyze this author's profile and their work:
@@ -49,6 +65,11 @@ export class AuthorAnalyzer {
     `;
   }
 
+  /**
+   * Performs AI analysis on an author profile using OpenAI
+   * @param author - The author profile to analyze
+   * @returns Promise<AuthorAnalysis> - The AI-generated analysis
+   */
   private static async analyzeWithAI(
     author: AuthorProfile
   ): Promise<AuthorAnalysis> {
@@ -74,6 +95,12 @@ export class AuthorAnalyzer {
     };
   }
 
+  /**
+   * Main analysis method that handles caching and orchestrates the analysis process
+   * @param authorId - The ID of the author to analyze
+   * @returns Promise<AuthorAnalysis> - The analysis results
+   * @throws Error if author is not found
+   */
   static async analyze(authorId: string): Promise<AuthorAnalysis> {
     // Check cache first
     const { data: cachedAnalysis } = await supabase
@@ -110,6 +137,11 @@ export class AuthorAnalyzer {
     return analysis;
   }
 
+  /**
+   * Caches analysis results in Supabase for future use
+   * @param authorId - The ID of the author
+   * @param analysis - The analysis results to cache
+   */
   private static async cacheAnalysis(
     authorId: string,
     analysis: AuthorAnalysis
@@ -125,6 +157,11 @@ export class AuthorAnalyzer {
     });
   }
 
+  /**
+   * Formats cached analysis data to match the AuthorAnalysis type
+   * @param cachedData - Raw cached data from Supabase
+   * @returns AuthorAnalysis - Formatted analysis data
+   */
   private static formatCachedAnalysis(cachedData: any): AuthorAnalysis {
     return {
       topics: cachedData.topics,
