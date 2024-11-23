@@ -1,5 +1,9 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { fileURLToPath } from 'url';
+import { resolve } from 'path';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   test: {
@@ -12,23 +16,23 @@ export default defineConfig({
     alias: [
       {
         find: '@',
-        replacement: path.resolve(__dirname)
+        replacement: resolve(__dirname)
       },
       {
         find: '@/components',
-        replacement: path.resolve(__dirname, './components')
+        replacement: resolve(__dirname, './components')
       },
       {
         find: '@/utils',
-        replacement: path.resolve(__dirname, './utils')
+        replacement: resolve(__dirname, './utils')
       },
       {
         find: '@/hooks',
-        replacement: path.resolve(__dirname, './hooks')
+        replacement: resolve(__dirname, './hooks')
       },
       {
         find: '@/types',
-        replacement: path.resolve(__dirname, './types')
+        replacement: resolve(__dirname, './types')
       }
     ]
   }

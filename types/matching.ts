@@ -1,48 +1,81 @@
 /**
- * Types for podcast matching and scoring system
- */
-
-/**
  * Weights for different matching criteria
  */
 export interface MatchWeights {
-  topicRelevance: number;
-  expertiseAlignment: number;
-  communicationStyle: number;
-  audienceMatch: number;
-  formatSuitability: number;
+  topic: number;
+  expertise: number;
+  style: number;
+  audience: number;
+  format: number;
+  length: number;
+  complexity: number;
+  quality: number;
 }
 
 /**
- * Detailed breakdown of why a match scored as it did
+ * Factors used in match scoring
  */
-export interface MatchScoreBreakdown {
+export interface MatchFactors {
   topicScore: number;
   expertiseScore: number;
   styleScore: number;
   audienceScore: number;
   formatScore: number;
+  lengthScore: number;
+  complexityScore: number;
+  qualityScore: number;
   explanation: string[];
 }
 
 /**
- * Result of the matching process
+ * Result of a podcast match
  */
-export interface MatchResult {
-  authorId: string;
+export interface PodcastMatch {
   podcastId: string;
   overallScore: number;
   confidence: number;
-  breakdown: MatchScoreBreakdown;
-  suggestedTopics: string[];
-  recommendedApproach?: string;
+  breakdown: MatchFactors;
+  matchReasons?: string[];
+  suggestedTopics?: string[];
 }
 
 /**
- * Configuration for the matching algorithm
+ * Filters for podcast matching
  */
-export interface MatchConfig {
-  weights: MatchWeights;
-  minimumScore: number;
-  minimumConfidence: number;
+export interface MatchFilters {
+  minScore?: number;
+  minConfidence?: number;
+  maxResults?: number;
+  topics?: string[];
+  excludePodcastIds?: string[];
 }
+
+/**
+ * Custom error for matching operations
+ */
+export class MatchingError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: Error
+  ) {
+    super(message);
+    this.name = 'MatchingError';
+  }
+}
+
+/**
+ * Default weights for match scoring
+ */
+export const MATCH_WEIGHTS = {
+  TOPIC_MATCH: 0.3,
+  STYLE_MATCH: 0.2,
+  LENGTH_MATCH: 0.15,
+  COMPLEXITY_MATCH: 0.15,
+  QUALITY_SCORE: 0.2
+} as const;
+
+/**
+ * Re-export MatchResult for backward compatibility
+ */
+export type MatchResult = PodcastMatch;

@@ -1,12 +1,15 @@
+import type { PodcastMatch } from './matching';
+
 /**
  * Represents a potential episode topic or angle
  */
 export interface EpisodeIdea {
   title: string;
   description: string;
-  keyPoints: string[];
-  relevanceScore: number;
+  topics: string[];
+  estimatedDuration: number;
   targetAudience: string[];
+  potentialImpact: string;
 }
 
 /**
@@ -29,32 +32,14 @@ export interface DetailedMatchResult {
   podcastId: string;
   overallScore: number;
   confidence: number;
-
-  // Core match details
-  compatibility: {
-    topicAlignment: number;
-    expertiseMatch: number;
-    styleCompatibility: number;
-    audienceMatch: number;
-    formatSuitability: number;
-  };
-
-  // Detailed explanations
-  explanations: {
-    strengths: string[];
-    considerations: string[];
-    recommendations: string[];
-  };
-
-  // Specific talking points
-  suggestedTopics: TopicExplanation[];
-
-  // Episode ideas
-  potentialEpisodes: EpisodeIdea[];
-
-  // Metadata
-  generatedAt: Date;
-  validUntil: Date;
+  authorDetails: AuthorDetails;
+  podcastDetails: PodcastDetails;
+  compatibilityAnalysis: CompatibilityAnalysis;
+  topicExplanations?: TopicExplanation[];
+  episodeIdeas?: EpisodeIdea[];
+  metadata?: MatchResultMetadata;
+  generatedAt?: Date;
+  validUntil?: Date;
 }
 
 /**
@@ -69,4 +54,40 @@ export interface MatchResultMetadata {
     analysisDepth: number;
     predictionAccuracy: number;
   };
+  version: string;
+}
+
+/**
+ * Author details
+ */
+export interface AuthorDetails {
+  id: string;
+  name: string;
+  bio: string;
+  expertise: string[];
+  topics: string[];
+  publications: string[];
+}
+
+/**
+ * Podcast details
+ */
+export interface PodcastDetails {
+  id: string;
+  title: string;
+  description: string;
+  categories: string[];
+  language: string;
+  averageEpisodeLength: number;
+  totalEpisodes: number;
+}
+
+/**
+ * Compatibility analysis
+ */
+export interface CompatibilityAnalysis {
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  potentialImpact: string;
 }

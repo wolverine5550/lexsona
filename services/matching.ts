@@ -1,10 +1,11 @@
 import { createClient } from '@/utils/supabase/client';
-import type {
+import {
   MatchFactors,
   PodcastMatch,
-  MatchFilters
+  MatchFilters,
+  MATCH_WEIGHTS,
+  MatchingError
 } from '@/types/matching';
-import { MATCH_WEIGHTS, MatchingError } from '@/types/matching';
 import type { UserPreferences } from '@/types/preferences';
 import type { PodcastFeatures } from '@/types/podcast-analysis';
 
@@ -44,7 +45,9 @@ export class PodcastMatchingService {
           (match): match is PodcastMatch =>
             match !== null && this.applyFilters(match, filters)
         )
-        .sort((a, b) => b.overallScore - a.overallScore);
+        .sort(
+          (a: PodcastMatch, b: PodcastMatch) => b.overallScore - a.overallScore
+        );
 
       // Apply result limit if specified
       return filters.maxResults
@@ -54,7 +57,7 @@ export class PodcastMatchingService {
       throw new MatchingError(
         'Failed to find podcast matches',
         'SCORING_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -65,38 +68,36 @@ export class PodcastMatchingService {
    * @param preferences - User preferences to match against
    * @returns Match result with scores and explanations
    */
-  private static async calculateMatch(
+  private static calculateMatch(
     podcast: PodcastFeatures,
     preferences: UserPreferences
-  ): Promise<PodcastMatch> {
-    // Calculate individual factor scores
-    const factors: MatchFactors = {
+  ): PodcastMatch {
+    const breakdown: MatchFactors = {
       topicScore: this.calculateTopicScore(podcast, preferences),
       styleScore: this.calculateStyleScore(podcast, preferences),
       lengthScore: this.calculateLengthScore(podcast, preferences),
       complexityScore: this.calculateComplexityScore(podcast, preferences),
-      qualityScore: this.calculateQualityScore(podcast)
+      qualityScore: this.calculateQualityScore(podcast),
+      expertiseScore: this.calculateTopicScore(podcast, preferences),
+      audienceScore: this.calculateTopicScore(podcast, preferences),
+      formatScore: this.calculateTopicScore(podcast, preferences),
+      explanation: ['Scores calculated based on preferences']
     };
 
-    // Calculate weighted overall score
-    const overallScore = this.calculateOverallScore(factors);
-
-    // Generate match reasons
+    const overallScore = this.calculateOverallScore(breakdown);
     const matchReasons = this.generateMatchReasons(
-      factors,
+      breakdown,
       podcast,
       preferences
     );
-
-    // Calculate confidence based on data completeness
     const confidence = this.calculateConfidence(podcast);
 
     return {
       podcastId: podcast.id,
       overallScore,
-      factors,
-      matchReasons,
-      confidence
+      confidence,
+      breakdown,
+      matchReasons
     };
   }
 
