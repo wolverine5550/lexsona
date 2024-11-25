@@ -3,11 +3,31 @@
  * This wraps all onboarding pages and provides common UI elements.
  * It shows the progress steps and maintains consistent styling.
  */
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
+
 export default function OnboardingLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
+  const steps = [
+    {
+      id: 1,
+      title: 'Create Profile',
+      description: 'Add your bio and expertise',
+      completed: false,
+      current: true
+    },
+    {
+      id: 2,
+      title: 'Add Book',
+      description: 'Enter your book details',
+      completed: false,
+      current: false
+    }
+    // Add more steps as needed
+  ];
+
   return (
     // Full-height container with dark theme
     <div className="min-h-screen bg-zinc-900">
@@ -23,6 +43,7 @@ export default function OnboardingLayout({
 
         {/* Page content */}
         <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
+          <ProgressSteps steps={steps} currentStep={0} />
           {children}
         </div>
       </div>
