@@ -189,7 +189,7 @@ export default function Home() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="py-24 bg-zinc-950">
+      <section id="features" className="py-24 bg-zinc-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           {/* Section Header */}
           <div className="mx-auto max-w-2xl text-center mb-16">
@@ -226,7 +226,7 @@ export default function Home() {
       </section>
 
       {/* Benefits Section with alternating layout */}
-      <section className="py-24 bg-zinc-900">
+      <section id="benefits" className="py-24 bg-zinc-900">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           {/* Map through benefits array */}
           {benefits.map((benefit, index) => (
