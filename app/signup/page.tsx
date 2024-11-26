@@ -1,8 +1,8 @@
-import { SignInForm } from '@/components/ui/AuthForms/SignInForm';
+import { SignUpForm } from '@/components/ui/AuthForms/SignUpForm';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
-export default async function SignInPage() {
+export default async function SignUpPage() {
   // Check if user is already signed in
   const supabase = createClient();
   const {
@@ -18,14 +18,14 @@ export default async function SignInPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
+        <h1 className="text-3xl font-bold text-white">Create Your Account</h1>
         <p className="mt-2 text-zinc-400">
-          Sign in to your account to continue
+          Join thousands of authors growing their audience
         </p>
       </div>
 
-      {/* Sign In Form */}
-      <SignInForm />
+      {/* Sign Up Form */}
+      <SignUpForm />
     </div>
   );
 }

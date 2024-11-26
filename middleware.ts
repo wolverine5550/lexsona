@@ -1,74 +1,53 @@
-import { type NextRequest } from 'next/server';
-import { updateSession } from '@/utils/supabase/middleware';
-import { createClient } from '@/utils/supabase/middleware';
-import { hasCompletedOnboarding } from '@/utils/supabase/queries';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 /**
- * Middleware function to handle authentication and routing
- * This runs on every request to check auth status and handle redirects
- *
- * @param request - The incoming request object
- * @returns Response object with appropriate redirects
+ * Middleware to handle auth state and protected routes
+ * - Refreshes session if needed
+ * - Redirects unauthenticated users from protected routes
+ * - Redirects authenticated users from auth pages
  */
 export async function middleware(request: NextRequest) {
-  try {
-    // Create Supabase client for this request
-    const { supabase, response } = createClient(request);
+  const response = NextResponse.next();
+  const supabase = createMiddlewareClient({ req: request, res: response });
 
-    // Update the session if needed (handles token refresh)
-    await updateSession(request);
+  // Refresh session if needed
+  await supabase.auth.getSession();
 
-    // Get current user
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+  // Get URL information
+  const { pathname } = request.nextUrl;
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
 
-    // Get the current path
-    const path = new URL(request.url).pathname;
+  // Define protected and auth routes
+  const protectedRoutes = ['/dashboard', '/onboarding'];
+  const authRoutes = ['/signin', '/signup', '/reset-password'];
 
-    // Define protected routes that require authentication
-    const protectedRoutes = ['/account', '/dashboard', '/podcasts'];
+  // Check if route is protected
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
 
-    // Define onboarding routes
-    const onboardingRoutes = [
-      '/onboarding',
-      '/onboarding/profile',
-      '/onboarding/book'
-    ];
+  // Check if route is auth page
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
-    // If user is not authenticated and tries to access protected routes
-    if (!user && protectedRoutes.includes(path)) {
-      const redirectUrl = new URL('/signin', request.url);
-      redirectUrl.searchParams.set('redirectedFrom', path);
-      return Response.redirect(redirectUrl);
-    }
-
-    // If user is authenticated, check onboarding status
-    if (user) {
-      const hasOnboarded = await hasCompletedOnboarding(supabase);
-
-      // If onboarding is not complete and user is not on an onboarding route
-      if (!hasOnboarded && !onboardingRoutes.includes(path)) {
-        return Response.redirect(new URL('/onboarding', request.url));
-      }
-
-      // If onboarding is complete and user tries to access onboarding routes
-      if (hasOnboarded && onboardingRoutes.includes(path)) {
-        return Response.redirect(new URL('/dashboard', request.url));
-      }
-    }
-
-    return response;
-  } catch (error) {
-    // Log any errors and return the original response
-    console.error('Middleware error:', error);
-    return Response.redirect(new URL('/', request.url));
+  // Redirect if needed
+  if (isProtectedRoute && !session) {
+    // Redirect unauthenticated users to sign in
+    return NextResponse.redirect(new URL('/signin', request.url));
   }
+
+  if (isAuthRoute && session) {
+    // Redirect authenticated users to dashboard
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  return response;
 }
 
-/**
- * Configuration for which routes the middleware should run on
- */
+// Configure which routes use this middleware
 export const config = {
   matcher: [
     /*

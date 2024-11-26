@@ -1,65 +1,34 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
-import { type NextRequest } from 'next/server';
-import { hasCompletedOnboarding } from '@/utils/supabase/queries';
+import { cookies } from 'next/headers';
 
 /**
- * Handles the authentication callback from Supabase Auth
- * This route is called after a user signs in or signs up
- * It checks the user's onboarding status and redirects accordingly
- *
- * @param request - The incoming request object
- * @returns Response with appropriate redirect
+ * Auth callback handler
+ * Handles redirects from:
+ * - Email verification
+ * - Password reset
+ * - OAuth providers
  */
-export async function GET(request: NextRequest) {
-  try {
-    // Extract the code and next parameters from the URL
-    const requestUrl = new URL(request.url);
-    const code = requestUrl.searchParams.get('code');
-    const next = requestUrl.searchParams.get('next') || '/';
+export async function GET(request: Request) {
+  // Get the code and next URL from query params
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const next = searchParams.get('next') ?? '/dashboard';
 
-    // If there's no code, redirect to sign in
-    if (!code) {
-      console.error('No code provided in auth callback');
-      return NextResponse.redirect(new URL('/signin', request.url));
-    }
-
-    // Create a Supabase client
+  if (code) {
+    // Create supabase server client
+    const cookieStore = cookies();
     const supabase = createClient();
 
-    // Exchange the code for a session
+    // Exchange code for session
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-    // If there's an error, redirect to sign in
-    if (error) {
-      console.error('Error exchanging code for session:', error);
-      return NextResponse.redirect(new URL('/signin', request.url));
+    if (!error) {
+      // Successful auth - redirect to next URL
+      return NextResponse.redirect(new URL(next, request.url));
     }
-
-    // Get the current user
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    // If no user, something went wrong
-    if (!user) {
-      console.error('No user found after code exchange');
-      return NextResponse.redirect(new URL('/signin', request.url));
-    }
-
-    // Check if the user has completed onboarding
-    const hasOnboarded = await hasCompletedOnboarding(supabase);
-
-    // If they haven't completed onboarding, send them there
-    if (!hasOnboarded) {
-      return NextResponse.redirect(new URL('/onboarding', request.url));
-    }
-
-    // Otherwise, redirect to the requested page or dashboard
-    return NextResponse.redirect(new URL(next, request.url));
-  } catch (error) {
-    // Log any unexpected errors and redirect to sign in
-    console.error('Auth callback error:', error);
-    return NextResponse.redirect(new URL('/signin', request.url));
   }
+
+  // Something went wrong - redirect to error page
+  return NextResponse.redirect(new URL('/auth/auth-error', request.url));
 }
