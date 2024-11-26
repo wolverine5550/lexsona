@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('useFormPersistence', () => {
   beforeEach(() => {
@@ -27,7 +28,9 @@ describe('useFormPersistence', () => {
     expect(result.current.formData).toEqual(savedData);
   });
 
-  it('should save data to localStorage when updated', () => {
+  it('should save data to localStorage when updated', async () => {
+    vi.useFakeTimers(); // Use fake timers to control debounce
+
     const { result } = renderHook(() =>
       useFormPersistence({ key: 'test', initialState: { name: '' } })
     );
@@ -36,8 +39,15 @@ describe('useFormPersistence', () => {
       result.current.setFormData({ name: 'updated' });
     });
 
+    // Fast-forward timers to trigger debounced save
+    act(() => {
+      vi.runAllTimers();
+    });
+
     const saved = localStorage.getItem('form_test');
     expect(JSON.parse(saved!)).toEqual({ name: 'updated' });
+
+    vi.useRealTimers(); // Restore real timers
   });
 
   it('should clear saved data', () => {

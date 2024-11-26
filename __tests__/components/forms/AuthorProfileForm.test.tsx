@@ -1,9 +1,63 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthorProfileForm } from '@/components/forms/AuthorProfileForm';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { describe, it, expect, vi } from 'vitest';
+
+// Add type for form data
+interface AuthorProfileFormData {
+  firstName: string;
+  lastName: string;
+  bio: string;
+  expertise: string[];
+  socialLinks: {
+    website?: string;
+    twitter?: string;
+    linkedin?: string;
+  };
+}
+
+// Mock Next.js router
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn()
+  })
+}));
+
+// Mock useFormPersistence hook with different states for different tests
+const mockSetFormData = vi.fn();
+const mockClearSavedData = vi.fn();
+let mockLastSaved: Date | null = null;
+let mockFormData: AuthorProfileFormData = {
+  firstName: '',
+  lastName: '',
+  bio: '',
+  expertise: [],
+  socialLinks: {}
+};
+
+vi.mock('@/hooks/useFormPersistence', () => ({
+  useFormPersistence: vi.fn(() => ({
+    formData: mockFormData,
+    setFormData: mockSetFormData,
+    clearSavedData: mockClearSavedData,
+    lastSaved: mockLastSaved
+  }))
+}));
+
+// Mock OnboardingContext
+vi.mock('@/contexts/OnboardingContext', () => ({
+  useOnboarding: () => ({
+    markStepComplete: vi.fn(),
+    setCanProceed: vi.fn()
+  }),
+  OnboardingProvider: ({ children }: { children: React.ReactNode }) => children
+}));
 
 // Mock Supabase client
-jest.mock('@/utils/supabase/client', () => ({
+vi.mock('@/utils/supabase/client', () => ({
   createClient: () => ({
     auth: {
       getUser: () => Promise.resolve({ data: { user: { id: 'test-user' } } })
@@ -24,18 +78,20 @@ describe('AuthorProfileForm', () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    mockLastSaved = null;
+    mockFormData = {
+      firstName: '',
+      lastName: '',
+      bio: '',
+      expertise: [],
+      socialLinks: {}
+    };
+    vi.clearAllMocks();
   });
 
   it('should show resume banner when saved data exists', () => {
-    // Set up saved data
-    localStorage.setItem(
-      'form_author_profile',
-      JSON.stringify({ firstName: 'John' })
-    );
-    localStorage.setItem(
-      'form_author_profile_timestamp',
-      new Date().toISOString()
-    );
+    // Set lastSaved to trigger banner
+    mockLastSaved = new Date();
 
     renderForm();
     expect(screen.getByText('Resume Your Progress')).toBeInTheDocument();
@@ -43,8 +99,6 @@ describe('AuthorProfileForm', () => {
 
   it('should validate required fields', async () => {
     renderForm();
-
-    // Try to submit empty form
     fireEvent.submit(screen.getByRole('form'));
 
     await waitFor(() => {
@@ -54,20 +108,16 @@ describe('AuthorProfileForm', () => {
   });
 
   it('should show success message on successful submission', async () => {
-    renderForm();
+    // Update mock form data to pass validation
+    mockFormData = {
+      firstName: 'John',
+      lastName: 'Doe',
+      bio: 'A very long bio that meets the minimum length requirement...',
+      expertise: ['Fiction Writing'],
+      socialLinks: {}
+    };
 
-    // Fill out form
-    fireEvent.change(screen.getByLabelText('First Name'), {
-      target: { value: 'John' }
-    });
-    fireEvent.change(screen.getByLabelText('Last Name'), {
-      target: { value: 'Doe' }
-    });
-    fireEvent.change(screen.getByLabelText('Bio'), {
-      target: {
-        value: 'A very long bio that meets the minimum length requirement...'
-      }
-    });
+    renderForm();
 
     // Submit form
     fireEvent.submit(screen.getByRole('form'));

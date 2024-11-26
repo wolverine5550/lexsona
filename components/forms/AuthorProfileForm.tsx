@@ -212,14 +212,19 @@ export function AuthorProfileForm() {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" role="form">
         {/* Name Fields */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-zinc-200">
+            <label
+              htmlFor="firstName"
+              className="block text-sm font-medium text-zinc-200"
+            >
               First Name
             </label>
             <input
+              id="firstName"
+              name="firstName"
               type="text"
               value={formData.firstName}
               onChange={(e) => handleChange('firstName', e.target.value)}
@@ -231,10 +236,15 @@ export function AuthorProfileForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-200">
+            <label
+              htmlFor="lastName"
+              className="block text-sm font-medium text-zinc-200"
+            >
               Last Name
             </label>
             <input
+              id="lastName"
+              name="lastName"
               type="text"
               value={formData.lastName}
               onChange={(e) => handleChange('lastName', e.target.value)}
@@ -248,8 +258,15 @@ export function AuthorProfileForm() {
 
         {/* Bio Field */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">Bio</label>
+          <label
+            htmlFor="bio"
+            className="block text-sm font-medium text-zinc-200"
+          >
+            Bio
+          </label>
           <textarea
+            id="bio"
+            name="bio"
             value={formData.bio}
             onChange={(e) => handleChange('bio', e.target.value)}
             rows={4}
@@ -263,7 +280,10 @@ export function AuthorProfileForm() {
 
         {/* Expertise Selection */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="expertise"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Areas of Expertise
           </label>
           <p className="mt-1 text-sm text-zinc-400">
@@ -295,7 +315,10 @@ export function AuthorProfileForm() {
 
         {/* Social Links */}
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="socialLinks"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Social & Professional Links
           </label>
           <p className="mt-1 text-sm text-zinc-400">
@@ -304,7 +327,10 @@ export function AuthorProfileForm() {
 
           {/* Website */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300">
+            <label
+              htmlFor="website"
+              className="block text-sm font-medium text-zinc-300"
+            >
               Website
             </label>
             <div className="mt-1 flex rounded-md">
@@ -312,6 +338,8 @@ export function AuthorProfileForm() {
                 https://
               </span>
               <input
+                id="website"
+                name="website"
                 type="text"
                 value={formData.socialLinks.website || ''}
                 onChange={(e) =>
@@ -325,7 +353,10 @@ export function AuthorProfileForm() {
 
           {/* Twitter */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300">
+            <label
+              htmlFor="twitter"
+              className="block text-sm font-medium text-zinc-300"
+            >
               Twitter
             </label>
             <div className="mt-1 flex rounded-md">
@@ -333,6 +364,8 @@ export function AuthorProfileForm() {
                 @
               </span>
               <input
+                id="twitter"
+                name="twitter"
                 type="text"
                 value={formData.socialLinks.twitter || ''}
                 onChange={(e) =>
@@ -346,7 +379,10 @@ export function AuthorProfileForm() {
 
           {/* LinkedIn */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300">
+            <label
+              htmlFor="linkedin"
+              className="block text-sm font-medium text-zinc-300"
+            >
               LinkedIn
             </label>
             <div className="mt-1 flex rounded-md">
@@ -354,6 +390,8 @@ export function AuthorProfileForm() {
                 linkedin.com/in/
               </span>
               <input
+                id="linkedin"
+                name="linkedin"
                 type="text"
                 value={formData.socialLinks.linkedin || ''}
                 onChange={(e) =>

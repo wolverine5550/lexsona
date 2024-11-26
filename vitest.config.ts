@@ -1,39 +1,21 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
-import { fileURLToPath } from 'url';
+import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['__tests__/setup.ts'],
     globals: true,
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}']
+    setupFiles: './vitest.setup.ts'
   },
   resolve: {
-    alias: [
-      {
-        find: '@',
-        replacement: resolve(__dirname)
-      },
-      {
-        find: '@/components',
-        replacement: resolve(__dirname, './components')
-      },
-      {
-        find: '@/utils',
-        replacement: resolve(__dirname, './utils')
-      },
-      {
-        find: '@/hooks',
-        replacement: resolve(__dirname, './hooks')
-      },
-      {
-        find: '@/types',
-        replacement: resolve(__dirname, './types')
-      }
-    ]
+    alias: {
+      '@': resolve(__dirname, './')
+    }
   }
 });

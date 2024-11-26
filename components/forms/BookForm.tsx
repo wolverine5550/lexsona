@@ -244,13 +244,18 @@ export function BookForm() {
         />
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" role="form">
         {/* Title Field */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="title"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Book Title
           </label>
           <input
+            id="title"
+            name="title"
             type="text"
             value={formData.title}
             onChange={(e) => handleChange('title', e.target.value)}
@@ -264,10 +269,15 @@ export function BookForm() {
 
         {/* Description Field */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Book Description
           </label>
           <textarea
+            id="description"
+            name="description"
             value={formData.description}
             onChange={(e) => handleChange('description', e.target.value)}
             rows={4}
@@ -345,10 +355,15 @@ export function BookForm() {
 
         {/* Publish Date */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="publishDate"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Publish Date
           </label>
           <input
+            id="publishDate"
+            name="publishDate"
             type="date"
             value={formData.publishDate}
             onChange={(e) => handleChange('publishDate', e.target.value)}
@@ -413,13 +428,18 @@ export function BookForm() {
 
         {/* Marketing Goals */}
         <div>
-          <label className="block text-sm font-medium text-zinc-200">
+          <label
+            htmlFor="marketingGoals"
+            className="block text-sm font-medium text-zinc-200"
+          >
             Marketing Goals
           </label>
           <p className="mt-1 text-sm text-zinc-400">
             What do you hope to achieve through podcast appearances?
           </p>
           <textarea
+            id="marketingGoals"
+            name="marketingGoals"
             value={formData.marketingGoals}
             onChange={(e) => handleChange('marketingGoals', e.target.value)}
             rows={4}
