@@ -1,5 +1,4 @@
 import type { Database } from './database';
-import type { ApiResponse } from './dashboard';
 
 /**
  * Type aliases for better readability
@@ -153,3 +152,13 @@ export interface DashboardService {
     authorId: string
   ): Promise<ApiResponse<Database['public']['Views']['author_stats']['Row']>>;
 }
+
+/**
+ * Generic API response type
+ */
+export type ApiResponse<T> = {
+  data: T;
+  error?: {
+    message: string;
+  };
+};
