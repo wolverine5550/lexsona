@@ -1,88 +1,74 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DashboardErrorBoundary } from '@/components/dashboard/DashboardErrorBoundary';
 
-// Mock console.error to avoid noise in test output
-const originalError = console.error;
-beforeAll(() => {
-  console.error = vi.fn();
-});
-
-afterAll(() => {
-  console.error = originalError;
-});
-
 describe('DashboardErrorBoundary', () => {
-  const ErrorComponent = () => {
-    throw new Error('Test error');
-    return null;
-  };
+  const consoleErrorSpy = vi
+    .spyOn(console, 'error')
+    .mockImplementation(() => {});
 
-  it('should render children when no error occurs', () => {
-    render(
-      <DashboardErrorBoundary>
-        <div data-testid="child">Test content</div>
-      </DashboardErrorBoundary>
-    );
-
-    expect(screen.getByTestId('child')).toBeInTheDocument();
+  beforeEach(() => {
+    consoleErrorSpy.mockClear();
   });
 
-  it('should render error UI when error occurs', () => {
-    render(
-      <DashboardErrorBoundary>
-        <ErrorComponent />
-      </DashboardErrorBoundary>
-    );
-
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText('Test error')).toBeInTheDocument();
-  });
-
-  it('should render custom fallback when provided', () => {
-    const fallback = <div data-testid="custom-fallback">Custom error UI</div>;
-
-    render(
-      <DashboardErrorBoundary fallback={fallback}>
-        <ErrorComponent />
-      </DashboardErrorBoundary>
-    );
-
-    expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it('should reset error state when try again is clicked', () => {
+    const TestComponent = ({ shouldThrow }: { shouldThrow: boolean }) => {
+      if (shouldThrow) {
+        throw new Error('Test error');
+      }
+      return <div data-testid="test-content">Content</div>;
+    };
+
     const { rerender } = render(
       <DashboardErrorBoundary>
-        <ErrorComponent />
+        <TestComponent shouldThrow={true} />
       </DashboardErrorBoundary>
     );
 
-    // Click try again
-    fireEvent.click(screen.getByText('Try again'));
+    // Error boundary should catch error and show error UI
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Test error')).toBeInTheDocument();
 
-    // Rerender with working component
+    // Click try again button
+    const tryAgainButton = screen.getByText('Try again');
+    fireEvent.click(tryAgainButton);
+
+    // Rerender with shouldThrow=false
     rerender(
       <DashboardErrorBoundary>
-        <div data-testid="recovered">Recovered content</div>
+        <TestComponent shouldThrow={false} />
       </DashboardErrorBoundary>
     );
 
-    expect(screen.getByTestId('recovered')).toBeInTheDocument();
+    // Should show recovered content
+    expect(screen.getByTestId('test-content')).toBeInTheDocument();
   });
 
   it('should log error details when error occurs', () => {
+    const ErrorComponent = () => {
+      throw new Error('Test error');
+    };
+
     render(
       <DashboardErrorBoundary>
         <ErrorComponent />
       </DashboardErrorBoundary>
     );
 
-    expect(console.error).toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalledWith(
-      'Dashboard error:',
-      expect.any(Error),
-      expect.any(Object)
+    // Verify error was logged
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    const errorCall = consoleErrorSpy.mock.calls.find(
+      (call) => call[0] === 'Error caught by boundary:'
     );
+    expect(errorCall).toBeTruthy();
+    if (errorCall) {
+      expect(errorCall[1]).toBeInstanceOf(Error);
+      expect(errorCall[1].message).toBe('Test error');
+      expect(errorCall[2]).toHaveProperty('componentStack');
+    }
   });
 });

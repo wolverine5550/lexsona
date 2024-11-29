@@ -3,6 +3,37 @@ import { dashboardReducer } from '@/contexts/dashboard/dashboardReducer';
 import { initialState } from '@/contexts/dashboard/dashboardTypes';
 import type { Database } from '@/types/database';
 
+// Add default state for tests
+const defaultState = {
+  matches: {
+    data: [],
+    loading: false,
+    error: null
+  },
+  notifications: {
+    data: [],
+    loading: false,
+    error: null,
+    unreadCount: 0
+  },
+  interviews: {
+    data: [],
+    loading: false,
+    error: null
+  },
+  activities: {
+    data: [],
+    groupedData: [],
+    loading: false,
+    error: null
+  },
+  stats: {
+    data: null,
+    loading: false,
+    error: null
+  }
+};
+
 describe('dashboardReducer', () => {
   // Stats reducer tests
   describe('stats actions', () => {
@@ -317,18 +348,42 @@ describe('dashboardReducer', () => {
     });
 
     it('should not modify state for unknown notification id', () => {
-      const stateWithNotification = dashboardReducer(initialState, {
-        type: 'FETCH_NOTIFICATIONS_SUCCESS',
-        payload: [mockNotification]
-      });
+      // Initial state with one unread notification
+      const initialState = {
+        ...defaultState,
+        notifications: {
+          data: [
+            {
+              id: 'known-id',
+              author_id: 'author-1',
+              type: 'match' as const,
+              title: 'New Match',
+              description: 'You have a new podcast match',
+              read: false,
+              priority: 'high' as const,
+              action_url: '/matches/1' as string | null,
+              metadata: {
+                match_id: 'match-1'
+              } as Database['public']['Tables']['notifications']['Row']['metadata'],
+              created_at: '2024-01-01T00:00:00Z'
+            }
+          ],
+          loading: false,
+          error: null,
+          unreadCount: 1
+        }
+      };
 
-      const nextState = dashboardReducer(stateWithNotification, {
+      // Try to mark an unknown notification as read
+      const nextState = dashboardReducer(initialState, {
         type: 'MARK_NOTIFICATION_READ',
-        payload: 'non-existent-id'
+        payload: 'unknown-id'
       });
 
       // State should remain unchanged
-      expect(nextState).toEqual(stateWithNotification);
+      expect(nextState).toEqual(initialState);
+      expect(nextState.notifications.data[0].read).toBe(false);
+      expect(nextState.notifications.unreadCount).toBe(1);
     });
 
     it('should handle multiple unread counts correctly', () => {

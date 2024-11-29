@@ -15,9 +15,17 @@ describe('DashboardLayout', () => {
       </DashboardLayout>
     );
 
-    expect(screen.getByText('Overview')).toBeInTheDocument();
-    expect(screen.getByText('My Books')).toBeInTheDocument();
-    expect(screen.getByText('Podcasts')).toBeInTheDocument();
+    // Use getAllByRole and check the first instance (desktop nav)
+    const navLinks = screen.getAllByRole('navigation')[0];
+    expect(navLinks.querySelector('a[href="/dashboard"]')).toHaveTextContent(
+      'Overview'
+    );
+    expect(
+      navLinks.querySelector('a[href="/dashboard/books"]')
+    ).toHaveTextContent('My Books');
+    expect(
+      navLinks.querySelector('a[href="/dashboard/podcasts"]')
+    ).toHaveTextContent('Podcasts');
   });
 
   it('should toggle mobile sidebar', () => {
@@ -27,16 +35,27 @@ describe('DashboardLayout', () => {
       </DashboardLayout>
     );
 
-    // Sidebar should be hidden initially
-    expect(screen.getByRole('navigation').parentElement).toHaveClass('hidden');
+    // Get the mobile menu button and sidebar
+    const menuButton = screen.getByRole('button', {
+      name: 'Toggle mobile menu'
+    });
+    const mobileNav = screen.getByRole('navigation', {
+      name: 'Mobile navigation'
+    });
 
-    // Open sidebar
-    fireEvent.click(screen.getByRole('button'));
-    expect(screen.getByRole('navigation').parentElement).toHaveClass('block');
+    // Initially sidebar should be hidden
+    expect(mobileNav.parentElement?.parentElement).toHaveClass('hidden');
 
-    // Close sidebar
-    fireEvent.click(screen.getByRole('button', { name: /close/i }));
-    expect(screen.getByRole('navigation').parentElement).toHaveClass('hidden');
+    // Click to open
+    fireEvent.click(menuButton);
+    expect(mobileNav.parentElement?.parentElement).not.toHaveClass('hidden');
+
+    // Click close button
+    const closeButton = screen.getByRole('button', {
+      name: 'Close mobile menu'
+    });
+    fireEvent.click(closeButton);
+    expect(mobileNav.parentElement?.parentElement).toHaveClass('hidden');
   });
 
   it('should highlight active navigation item', () => {
@@ -46,7 +65,12 @@ describe('DashboardLayout', () => {
       </DashboardLayout>
     );
 
-    const activeLink = screen.getByText('Overview').closest('a');
-    expect(activeLink).toHaveClass('bg-blue-500/10');
+    // Get the first navigation (desktop) and find the active link
+    const desktopNav = screen.getAllByRole('navigation')[0];
+    const activeLink = desktopNav.querySelector('a[href="/dashboard"]');
+    const inactiveLink = desktopNav.querySelector('a[href="/dashboard/books"]');
+
+    expect(activeLink).toHaveClass('bg-blue-500/10', 'text-blue-500');
+    expect(inactiveLink).not.toHaveClass('bg-blue-500/10', 'text-blue-500');
   });
 });

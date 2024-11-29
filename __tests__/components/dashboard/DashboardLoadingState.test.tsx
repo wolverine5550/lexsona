@@ -20,8 +20,7 @@ describe('DashboardLoadingState', () => {
       </DashboardLoadingState>
     );
 
-    // Default loading UI should be present
-    const loadingElement = screen.getByRole('generic');
+    const loadingElement = screen.getByTestId('loading-skeleton');
     expect(loadingElement).toHaveClass('animate-pulse');
     expect(loadingElement.children).toHaveLength(2); // Two skeleton lines
   });

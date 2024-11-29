@@ -57,15 +57,9 @@ export interface Notification extends Activity {
  * API Response types
  */
 export interface ApiResponse<T> {
-  data?: T;
+  data: T;
   error?: {
-    code: string;
     message: string;
-  };
-  metadata?: {
-    page?: number;
-    totalPages?: number;
-    totalCount?: number;
   };
 }
 

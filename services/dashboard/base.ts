@@ -6,12 +6,22 @@ import type {
   MatchService,
   InterviewService,
   NotificationService,
-  ActivityService
+  ActivityService,
+  ApiResponse
 } from '@/types/services';
 import { MatchServiceImpl } from './match';
 import { InterviewServiceImpl } from './interview';
 import { NotificationServiceImpl } from './notification';
 import { ActivityServiceImpl } from './activity';
+
+type Stats = {
+  author_id: string;
+  total_matches: number;
+  pending_requests: number;
+  upcoming_interviews: number;
+  profile_views: number;
+  updated_at: string;
+};
 
 /**
  * Base dashboard service implementation
@@ -39,7 +49,7 @@ export class BaseDashboardService implements DashboardService {
    * Fetches dashboard statistics for an author
    * @param authorId - The ID of the author
    */
-  async getStats(authorId: string) {
+  async getStats(authorId: string): Promise<ApiResponse<Stats>> {
     try {
       const { data, error } = await this.supabase
         .from('author_stats')
@@ -49,11 +59,18 @@ export class BaseDashboardService implements DashboardService {
 
       if (error) throw error;
 
-      return { data };
+      return { data: data as Stats };
     } catch (error) {
       return {
+        data: {
+          author_id: authorId,
+          total_matches: 0,
+          pending_requests: 0,
+          upcoming_interviews: 0,
+          profile_views: 0,
+          updated_at: new Date().toISOString()
+        },
         error: {
-          code: 'FETCH_STATS_ERROR',
           message:
             error instanceof Error ? error.message : 'Failed to fetch stats'
         }

@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import type { ActivityService } from '@/types/services';
-import type { ApiResponse } from '@/types/dashboard';
+import type { ActivityService, ApiResponse } from '@/types/services';
+
+type Activity = Database['public']['Tables']['activities']['Row'];
+type GroupedActivities = {
+  date: string;
+  activities: Activity[];
+}[];
 
 /**
  * Implementation of the Activity Service
@@ -12,25 +17,17 @@ import type { ApiResponse } from '@/types/dashboard';
  * - Activity aggregation and grouping
  */
 export class ActivityServiceImpl implements ActivityService {
-  /**
-   * Initialize service with Supabase client
-   * @param supabase - Typed Supabase client instance
-   */
   constructor(private supabase: SupabaseClient<Database>) {}
 
   /**
    * Fetches recent activities for an author
    * Orders by creation date, newest first
    * Can be filtered by type and limited
-   *
-   * @param authorId - The ID of the author to fetch activities for
-   * @param limit - Maximum number of activities to return (default: 20)
-   * @returns Promise with activities data or error
    */
   async getRecentActivities(
     authorId: string,
     limit = 20
-  ): Promise<ApiResponse<Database['public']['Tables']['activities']['Row'][]>> {
+  ): Promise<ApiResponse<Activity[]>> {
     try {
       const { data, error } = await this.supabase
         .from('activities')
@@ -54,12 +51,9 @@ export class ActivityServiceImpl implements ActivityService {
       return { data: data ?? [] };
     } catch (error) {
       return {
+        data: [],
         error: {
-          code: 'FETCH_ACTIVITIES_ERROR',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch activities'
+          message: error instanceof Error ? error.message : 'Unknown error'
         }
       };
     }
@@ -68,13 +62,10 @@ export class ActivityServiceImpl implements ActivityService {
   /**
    * Creates a new activity record
    * Used internally by other services to track actions
-   *
-   * @param data - The activity details to create
-   * @returns Promise with created activity or error
    */
   async createActivity(
     data: Database['public']['Tables']['activities']['Insert']
-  ): Promise<ApiResponse<Database['public']['Tables']['activities']['Row']>> {
+  ): Promise<ApiResponse<Activity>> {
     try {
       const { data: activity, error } = await this.supabase
         .from('activities')
@@ -83,14 +74,14 @@ export class ActivityServiceImpl implements ActivityService {
         .single();
 
       if (error) throw error;
+      if (!activity) throw new Error('No activity returned');
 
       return { data: activity };
     } catch (error) {
       return {
+        data: {} as Activity, // Cast empty object to Activity to satisfy type
         error: {
-          code: 'CREATE_ACTIVITY_ERROR',
-          message:
-            error instanceof Error ? error.message : 'Failed to create activity'
+          message: error instanceof Error ? error.message : 'Unknown error'
         }
       };
     }
@@ -99,22 +90,11 @@ export class ActivityServiceImpl implements ActivityService {
   /**
    * Gets activities grouped by date
    * Useful for displaying activities in date-separated sections
-   *
-   * @param authorId - The ID of the author to fetch activities for
-   * @param days - Number of days to look back (default: 7)
-   * @returns Promise with grouped activities or error
    */
   async getGroupedActivities(
     authorId: string,
     days = 7
-  ): Promise<
-    ApiResponse<
-      {
-        date: string;
-        activities: Database['public']['Tables']['activities']['Row'][];
-      }[]
-    >
-  > {
+  ): Promise<ApiResponse<GroupedActivities>> {
     try {
       const { data, error } = await this.supabase
         .from('activities')
@@ -129,14 +109,17 @@ export class ActivityServiceImpl implements ActivityService {
       if (error) throw error;
 
       // Group activities by date
-      const grouped = (data ?? []).reduce<
-        Record<string, Database['public']['Tables']['activities']['Row'][]>
-      >((acc, activity) => {
-        const date = new Date(activity.created_at).toISOString().split('T')[0];
-        acc[date] = acc[date] || [];
-        acc[date].push(activity);
-        return acc;
-      }, {});
+      const grouped = (data ?? []).reduce<Record<string, Activity[]>>(
+        (acc, activity) => {
+          const date = new Date(activity.created_at)
+            .toISOString()
+            .split('T')[0];
+          acc[date] = acc[date] || [];
+          acc[date].push(activity);
+          return acc;
+        },
+        {}
+      );
 
       // Convert to array format
       const result = Object.entries(grouped).map(([date, activities]) => ({
@@ -147,12 +130,9 @@ export class ActivityServiceImpl implements ActivityService {
       return { data: result };
     } catch (error) {
       return {
+        data: [], // Return empty array for grouped activities
         error: {
-          code: 'FETCH_GROUPED_ACTIVITIES_ERROR',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch grouped activities'
+          message: error instanceof Error ? error.message : 'Unknown error'
         }
       };
     }

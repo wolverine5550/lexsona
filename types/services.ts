@@ -38,6 +38,16 @@ export interface MatchService {
     matchId: string,
     status: Enums['match_status']
   ): Promise<ApiResponse<void>>;
+
+  /**
+   * Subscribes to new matches for an author
+   * @param authorId - The ID of the author
+   * @param callback - Callback for new matches
+   */
+  subscribeToMatches?: (
+    authorId: string,
+    callback: (match: Tables['matches']['Row']) => void
+  ) => () => void;
 }
 
 /**

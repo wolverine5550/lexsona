@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import type { NotificationService } from '@/types/services';
-import type { ApiResponse } from '@/types/dashboard';
+import type { NotificationService, ApiResponse } from '@/types/services';
+
+type Notification = Database['public']['Tables']['notifications']['Row'];
 
 /**
  * Implementation of the Notification Service
@@ -30,35 +31,28 @@ export class NotificationServiceImpl implements NotificationService {
   async getNotifications(
     authorId: string,
     unreadOnly = false
-  ): Promise<
-    ApiResponse<Database['public']['Tables']['notifications']['Row'][]>
-  > {
+  ): Promise<ApiResponse<Notification[]>> {
     try {
-      // Build base query
-      const query = this.supabase
+      let query = this.supabase
         .from('notifications')
         .select('*')
         .eq('author_id', authorId)
         .order('created_at', { ascending: false });
 
-      // Add unread filter if requested
       if (unreadOnly) {
-        query.eq('read', false);
+        query = query.eq('read', false);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      return { data: data ?? [] };
+      return { data: data || [] };
     } catch (error) {
       return {
+        data: [],
         error: {
-          code: 'FETCH_NOTIFICATIONS_ERROR',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch notifications'
+          message: error instanceof Error ? error.message : 'Unknown error'
         }
       };
     }
@@ -73,7 +67,6 @@ export class NotificationServiceImpl implements NotificationService {
    */
   async markAsRead(notificationId: string): Promise<ApiResponse<void>> {
     try {
-      // Update notification read status
       const { error } = await this.supabase
         .from('notifications')
         .update({ read: true })
@@ -81,11 +74,11 @@ export class NotificationServiceImpl implements NotificationService {
 
       if (error) throw error;
 
-      return {};
+      return { data: undefined };
     } catch (error) {
       return {
+        data: undefined,
         error: {
-          code: 'UPDATE_NOTIFICATION_ERROR',
           message:
             error instanceof Error
               ? error.message

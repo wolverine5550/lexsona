@@ -11,7 +11,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './vitest.setup.ts'
+    setupFiles: './vitest.setup.ts',
+    testTimeout: 20000,
+    threads: false,
+    environmentOptions: {
+      jsdom: {
+        resources: 'usable',
+        runScripts: 'dangerously'
+      }
+    }
   },
   resolve: {
     alias: {

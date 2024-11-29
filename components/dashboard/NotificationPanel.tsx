@@ -13,24 +13,24 @@ interface Props {
  * Displays user notifications with unread indicators
  */
 export function NotificationPanel({ limit = 10, onlyUnread = false }: Props) {
-  const { state, fetchNotifications, markNotificationRead } = useDashboard();
-  const { data, unreadCount, loading, error } = state.notifications;
+  const { state, actions } = useDashboard();
+  const { data, loading, error } = state.notifications;
 
   useEffect(() => {
-    fetchNotifications(onlyUnread);
-  }, [onlyUnread, fetchNotifications]);
+    actions.fetchNotifications(onlyUnread);
+  }, [onlyUnread, actions]);
 
   return (
     <DashboardLoadingState loading={loading} error={error}>
       <div className="space-y-4">
-        {unreadCount > 0 && (
+        {data.length > 0 && (
           <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm">
-            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+            {data.length} unread notification{data.length !== 1 ? 's' : ''}
           </div>
         )}
         <NotificationList
           notifications={data}
-          onMarkRead={markNotificationRead}
+          onMarkRead={actions.markNotificationRead}
         />
       </div>
     </DashboardLoadingState>

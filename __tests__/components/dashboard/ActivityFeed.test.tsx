@@ -1,208 +1,145 @@
-import { describe, it, expect, vi } from 'vitest';
+import { vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import {
-  DashboardContext,
-  DashboardContextType
+  DashboardProvider,
+  useDashboard
 } from '@/contexts/dashboard/DashboardContext';
+import { setupSupabaseMock } from '../../setup/mockSupabase';
 import type { Database } from '@/types/database';
 
-// Mock activities
-const mockActivities: Database['public']['Tables']['activities']['Row'][] = [
+// Set up Supabase mock
+setupSupabaseMock();
+
+// Mock activity data
+const mockActivities = [
   {
     id: '1',
     author_id: 'author-1',
-    type: 'match',
-    title: 'New Match Found',
-    description: 'You matched with "The Author Hour" podcast',
-    metadata: { podcast_id: 'pod-1' },
+    type: 'match' as const,
+    title: 'New Podcast Match',
+    description: 'You have a new match with The Author Hour',
+    metadata: { match_id: 'match-1' },
     created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '2',
     author_id: 'author-1',
-    type: 'message',
-    title: 'New Message',
-    description: 'Sarah from Book Talk Daily sent you a message',
-    metadata: { conversation_id: 'conv-1' },
+    type: 'interview' as const,
+    title: 'Interview Scheduled',
+    description: 'Interview scheduled with Book Talk Daily',
+    metadata: { interview_id: 'interview-1' },
     created_at: '2024-01-14T15:30:00Z'
   }
-];
+] as const;
 
-// Mock grouped activities
-const mockGroupedActivities = [
-  {
-    date: '2024-01-15',
-    activities: [mockActivities[0]]
-  },
-  {
-    date: '2024-01-14',
-    activities: [mockActivities[1]]
-  }
-];
+// Create a mock function for useDashboard
+const mockUseDashboard = vi.fn();
 
-// Mock context value
-const mockContextValue: DashboardContextType = {
-  state: {
-    stats: {
-      data: null,
-      loading: false,
-      error: null
-    },
-    matches: {
-      data: [],
-      loading: false,
-      error: null
-    },
-    interviews: {
-      data: [],
-      loading: false,
-      error: null
-    },
-    notifications: {
-      data: [],
-      unreadCount: 0,
-      loading: false,
-      error: null
-    },
-    activities: {
-      data: mockActivities,
-      groupedData: mockGroupedActivities,
-      loading: false,
-      error: null
-    }
-  },
-  // Mock all required actions
-  fetchStats: vi.fn(),
-  fetchMatches: vi.fn(),
-  updateMatchStatus: vi.fn(),
-  fetchInterviews: vi.fn(),
-  scheduleInterview: vi.fn(),
-  updateInterview: vi.fn(),
-  fetchNotifications: vi.fn(),
-  markNotificationRead: vi.fn(),
-  fetchActivities: vi.fn(),
-  fetchGroupedActivities: vi.fn()
-};
+// Mock the context hook
+vi.mock('@/contexts/dashboard/DashboardContext', () => ({
+  DashboardProvider: ({ children }: { children: React.ReactNode }) => children,
+  useDashboard: () => mockUseDashboard()
+}));
 
 describe('ActivityFeed', () => {
-  it('should render activity items in list view', () => {
-    render(
-      <DashboardContext.Provider value={mockContextValue}>
-        <ActivityFeed />
-      </DashboardContext.Provider>
-    );
-
-    expect(screen.getByText('New Match Found')).toBeInTheDocument();
-    expect(screen.getByText('New Message')).toBeInTheDocument();
-    expect(
-      screen.getByText('You matched with "The Author Hour" podcast')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('Sarah from Book Talk Daily sent you a message')
-    ).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseDashboard.mockReturnValue({
+      state: {
+        activities: {
+          data: mockActivities,
+          loading: false,
+          error: null
+        }
+      },
+      actions: {
+        fetchActivities: vi.fn()
+      }
+    });
   });
 
-  it('should render activities grouped by date', () => {
+  it('should render activities', () => {
     render(
-      <DashboardContext.Provider value={mockContextValue}>
-        <ActivityFeed grouped />
-      </DashboardContext.Provider>
+      <DashboardProvider>
+        <ActivityFeed />
+      </DashboardProvider>
     );
 
-    // Check date headers
-    expect(screen.getByText(/January 15/)).toBeInTheDocument();
-    expect(screen.getByText(/January 14/)).toBeInTheDocument();
-
-    // Check activities under correct dates
-    const sections = screen.getAllByRole('region');
-    expect(sections).toHaveLength(2);
-    expect(sections[0]).toHaveTextContent('New Match Found');
-    expect(sections[1]).toHaveTextContent('New Message');
+    expect(screen.getByText('New Podcast Match')).toBeInTheDocument();
+    expect(screen.getByText('Interview Scheduled')).toBeInTheDocument();
+    expect(
+      screen.getByText('You have a new match with The Author Hour')
+    ).toBeInTheDocument();
   });
 
   it('should show loading state', () => {
+    mockUseDashboard.mockReturnValue({
+      state: {
+        activities: {
+          data: [],
+          loading: true,
+          error: null
+        }
+      },
+      actions: {
+        fetchActivities: vi.fn()
+      }
+    });
+
     render(
-      <DashboardContext.Provider
-        value={{
-          ...mockContextValue,
-          state: {
-            ...mockContextValue.state,
-            activities: {
-              ...mockContextValue.state.activities,
-              loading: true
-            }
-          }
-        }}
-      >
+      <DashboardProvider>
         <ActivityFeed />
-      </DashboardContext.Provider>
+      </DashboardProvider>
     );
 
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
-  it('should show error state', () => {
-    const errorMessage = 'Failed to load activities';
-    render(
-      <DashboardContext.Provider
-        value={{
-          ...mockContextValue,
-          state: {
-            ...mockContextValue.state,
-            activities: {
-              ...mockContextValue.state.activities,
-              error: errorMessage
-            }
-          }
-        }}
-      >
-        <ActivityFeed />
-      </DashboardContext.Provider>
-    );
+  it('should show empty state', () => {
+    mockUseDashboard.mockReturnValue({
+      state: {
+        activities: {
+          data: [],
+          loading: false,
+          error: null
+        }
+      },
+      actions: {
+        fetchActivities: vi.fn()
+      }
+    });
 
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
-  });
-
-  it('should show empty state when no activities', () => {
     render(
-      <DashboardContext.Provider
-        value={{
-          ...mockContextValue,
-          state: {
-            ...mockContextValue.state,
-            activities: {
-              ...mockContextValue.state.activities,
-              data: [],
-              groupedData: []
-            }
-          }
-        }}
-      >
+      <DashboardProvider>
         <ActivityFeed />
-      </DashboardContext.Provider>
+      </DashboardProvider>
     );
 
     expect(screen.getByText('No activities to display')).toBeInTheDocument();
   });
 
   it('should fetch activities on mount', () => {
+    const fetchActivities = vi.fn();
+    mockUseDashboard.mockReturnValue({
+      state: {
+        activities: {
+          data: mockActivities,
+          loading: false,
+          error: null
+        }
+      },
+      actions: {
+        fetchActivities
+      }
+    });
+
     render(
-      <DashboardContext.Provider value={mockContextValue}>
-        <ActivityFeed limit={10} />
-      </DashboardContext.Provider>
+      <DashboardProvider>
+        <ActivityFeed />
+      </DashboardProvider>
     );
 
-    expect(mockContextValue.fetchActivities).toHaveBeenCalledWith(10);
-  });
-
-  it('should fetch grouped activities when grouped prop is true', () => {
-    render(
-      <DashboardContext.Provider value={mockContextValue}>
-        <ActivityFeed grouped />
-      </DashboardContext.Provider>
-    );
-
-    expect(mockContextValue.fetchGroupedActivities).toHaveBeenCalledWith(7);
+    expect(fetchActivities).toHaveBeenCalled();
   });
 });

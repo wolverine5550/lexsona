@@ -15,34 +15,30 @@ import type { InterviewWithPodcast } from '@/components/dashboard/InterviewSched
 
 // Context type with state and actions
 export interface DashboardContextType {
-  state: DashboardState;
-  // Stats actions
-  fetchStats: () => Promise<void>;
-
-  // Match actions
-  fetchMatches: () => Promise<void>;
-  updateMatchStatus: (
-    id: string,
-    status: Database['public']['Enums']['match_status']
-  ) => Promise<void>;
-
-  // Interview actions
-  fetchInterviews: () => Promise<void>;
-  scheduleInterview: (
-    data: Database['public']['Tables']['interviews']['Insert']
-  ) => Promise<void>;
-  updateInterview: (
-    id: string,
-    data: Partial<Database['public']['Tables']['interviews']['Update']>
-  ) => Promise<void>;
-
-  // Notification actions
-  fetchNotifications: (unreadOnly?: boolean) => Promise<void>;
-  markNotificationRead: (id: string) => Promise<void>;
-
-  // Activity actions
-  fetchActivities: (limit?: number) => Promise<void>;
-  fetchGroupedActivities: (days?: number) => Promise<void>;
+  dispatch: (action: any) => void;
+  state: {
+    matches: { data: any[]; loading: boolean; error: string | null };
+    notifications: { data: any[]; loading: boolean; error: string | null };
+    interviews: { data: any[]; loading: boolean; error: string | null };
+    activities: { data: any[]; loading: boolean; error: string | null };
+    stats: { data: any; loading: boolean; error: string | null };
+  };
+  actions: {
+    fetchMatches: () => Promise<void>;
+    fetchNotifications: (unreadOnly?: boolean) => Promise<void>;
+    fetchInterviews: () => Promise<void>;
+    fetchActivities: () => Promise<void>;
+    fetchStats: () => Promise<void>;
+    updateMatchStatus: (
+      id: string,
+      status: Database['public']['Enums']['match_status']
+    ) => Promise<void>;
+    markNotificationRead: (id: string) => Promise<void>;
+    updateInterview: (
+      id: string,
+      data: Partial<Database['public']['Tables']['interviews']['Update']>
+    ) => Promise<void>;
+  };
 }
 
 // Create context
@@ -280,17 +276,44 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   return (
     <DashboardContext.Provider
       value={{
-        state,
-        fetchStats,
-        fetchMatches,
-        updateMatchStatus,
-        fetchInterviews,
-        scheduleInterview,
-        updateInterview,
-        fetchNotifications,
-        markNotificationRead,
-        fetchActivities,
-        fetchGroupedActivities
+        dispatch,
+        state: {
+          matches: {
+            data: state.matches.data,
+            loading: state.matches.loading,
+            error: state.matches.error
+          },
+          notifications: {
+            data: state.notifications.data,
+            loading: state.notifications.loading,
+            error: state.notifications.error
+          },
+          interviews: {
+            data: state.interviews.data,
+            loading: state.interviews.loading,
+            error: state.interviews.error
+          },
+          activities: {
+            data: state.activities.data,
+            loading: state.activities.loading,
+            error: state.activities.error
+          },
+          stats: {
+            data: state.stats.data,
+            loading: state.stats.loading,
+            error: state.stats.error
+          }
+        },
+        actions: {
+          fetchMatches,
+          fetchNotifications,
+          fetchInterviews,
+          fetchActivities,
+          fetchStats,
+          updateMatchStatus,
+          markNotificationRead,
+          updateInterview
+        }
       }}
     >
       {children}

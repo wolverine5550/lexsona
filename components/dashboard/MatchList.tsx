@@ -26,13 +26,13 @@ export function MatchList({
   filter = 'all',
   sortBy = 'score'
 }: Props) {
-  const { state, fetchMatches, updateMatchStatus } = useDashboard();
+  const { state, actions } = useDashboard();
   const { data, loading, error } = state.matches;
   const [sortedMatches, setSortedMatches] = useState(data);
 
   useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
+    actions.fetchMatches();
+  }, [actions]);
 
   useEffect(() => {
     let filtered = [...data];
@@ -63,8 +63,13 @@ export function MatchList({
           currentFilter={filter}
           currentSort={sortBy}
           matchCount={data.length}
+          onFilterChange={(filter) => {}}
+          onSortChange={(sort) => {}}
         />
-        <MatchGrid matches={sortedMatches} onUpdateStatus={updateMatchStatus} />
+        <MatchGrid
+          matches={sortedMatches}
+          onUpdateStatus={actions.updateMatchStatus}
+        />
       </div>
     </DashboardLoadingState>
   );
@@ -74,12 +79,16 @@ interface MatchFiltersProps {
   currentFilter: string;
   currentSort: string;
   matchCount: number;
+  onFilterChange: (filter: string) => void;
+  onSortChange: (sort: string) => void;
 }
 
 function MatchFilters({
   currentFilter,
   currentSort,
-  matchCount
+  matchCount,
+  onFilterChange,
+  onSortChange
 }: MatchFiltersProps) {
   return (
     <div className="flex items-center justify-between">
@@ -87,6 +96,7 @@ function MatchFilters({
         <select
           className="px-3 py-1 rounded border border-gray-200"
           value={currentFilter}
+          onChange={(e) => onFilterChange(e.target.value)}
         >
           <option value="all">All Matches</option>
           <option value="new">New</option>
@@ -96,6 +106,7 @@ function MatchFilters({
         <select
           className="px-3 py-1 rounded border border-gray-200"
           value={currentSort}
+          onChange={(e) => onSortChange(e.target.value)}
         >
           <option value="score">Match Score</option>
           <option value="date">Date Added</option>
@@ -154,13 +165,14 @@ function MatchCard({ match, onUpdateStatus }: MatchCardProps) {
         </span>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        {match.match_reason.join(', ')}
+        {match.match_reason?.join(', ') || 'No match reason provided'}
       </p>
       <div className="flex justify-between items-center">
         <select
+          aria-label="Match status"
+          className="px-2 py-1 text-sm rounded border border-gray-200"
           value={match.status}
           onChange={(e) => handleStatusChange(e.target.value as MatchStatus)}
-          className="px-2 py-1 text-sm rounded border border-gray-200"
         >
           <option value="new">New</option>
           <option value="contacted">Contacted</option>

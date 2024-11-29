@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import type { MatchService } from '@/types/services';
-import type { ApiResponse } from '@/types/dashboard';
+import type { MatchService, ApiResponse } from '@/types/services';
+
+type Match = Database['public']['Tables']['matches']['Row'];
+type MatchStatus = Database['public']['Enums']['match_status'];
 
 /**
  * Implementation of the Match Service
@@ -29,55 +31,30 @@ export class MatchServiceImpl implements MatchService {
   async getRecentMatches(
     authorId: string,
     limit = 10,
-    status?: Database['public']['Enums']['match_status']
-  ): Promise<ApiResponse<Database['public']['Tables']['matches']['Row'][]>> {
+    status?: MatchStatus
+  ): Promise<ApiResponse<Match[]>> {
     try {
-      // Build base query with podcast details
-      const query = this.supabase
+      let query = this.supabase
         .from('matches')
-        .select(
-          `
-          id,
-          author_id,
-          podcast_id,
-          match_score,
-          match_reason,
-          status,
-          created_at,
-          updated_at,
-          podcast:podcasts (
-            id,
-            title,
-            publisher,
-            description,
-            image,
-            categories
-          )
-        `
-        )
+        .select('*')
         .eq('author_id', authorId)
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      // Add status filter if provided
       if (status) {
-        query.eq('status', status);
+        query = query.eq('status', status);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      // Extract just the match data without the podcast details
-      const matches = data?.map(({ podcast, ...match }) => match) ?? [];
-
-      return { data: matches };
+      return { data: data ?? [] };
     } catch (error) {
       return {
+        data: [], // Always return an array
         error: {
-          code: 'FETCH_MATCHES_ERROR',
-          message:
-            error instanceof Error ? error.message : 'Failed to fetch matches'
+          message: error instanceof Error ? error.message : 'Unknown error'
         }
       };
     }
@@ -93,10 +70,9 @@ export class MatchServiceImpl implements MatchService {
    */
   async updateMatchStatus(
     matchId: string,
-    status: Database['public']['Enums']['match_status']
-  ) {
+    status: MatchStatus
+  ): Promise<ApiResponse<void>> {
     try {
-      // Call database function that handles both update and activity creation
       const { error } = await this.supabase.rpc('update_match_status', {
         p_match_id: matchId,
         p_status: status
@@ -104,11 +80,11 @@ export class MatchServiceImpl implements MatchService {
 
       if (error) throw error;
 
-      return {};
+      return { data: undefined }; // Must include data property
     } catch (error) {
       return {
+        data: undefined, // Must include data property
         error: {
-          code: 'UPDATE_MATCH_ERROR',
           message:
             error instanceof Error ? error.message : 'Failed to update match'
         }

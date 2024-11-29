@@ -178,19 +178,35 @@ export function dashboardReducer(
         }
       };
 
-    case 'MARK_NOTIFICATION_READ':
+    case 'MARK_NOTIFICATION_READ': {
+      const notificationId = action.payload;
+      const notificationIndex = state.notifications.data.findIndex(
+        (n) => n.id === notificationId
+      );
+
+      // If notification not found, return state unchanged
+      if (notificationIndex === -1) {
+        return state;
+      }
+
+      const updatedNotifications = [...state.notifications.data];
+      updatedNotifications[notificationIndex] = {
+        ...updatedNotifications[notificationIndex],
+        read: true
+      };
+
+      // Calculate new unread count
+      const unreadCount = updatedNotifications.filter((n) => !n.read).length;
+
       return {
         ...state,
         notifications: {
           ...state.notifications,
-          data: state.notifications.data.map((notification) =>
-            notification.id === action.payload
-              ? { ...notification, read: true }
-              : notification
-          ),
-          unreadCount: state.notifications.unreadCount - 1
+          data: updatedNotifications,
+          unreadCount
         }
       };
+    }
 
     case 'NEW_NOTIFICATION':
       return {

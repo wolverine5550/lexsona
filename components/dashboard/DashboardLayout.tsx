@@ -54,11 +54,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               type="button"
               className="text-zinc-400 hover:text-zinc-200"
               onClick={() => setSidebarOpen(false)}
+              aria-label="Close mobile menu"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
-          <nav className="px-4 py-4">
+          <nav className="px-4 py-4" aria-label="Mobile navigation">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -83,7 +84,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex h-16 items-center px-6">
             <span className="text-xl font-semibold text-white">Lexsona</span>
           </div>
-          <nav className="flex-1 px-4 py-4">
+          <nav className="flex-1 px-4 py-4" aria-label="Desktop navigation">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -110,8 +111,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               type="button"
               className="text-zinc-400 hover:text-zinc-200 lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Toggle mobile menu"
             >
-              <Bars3Icon className="h-6 w-6" />
+              <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
             <NotificationsPanel />
           </div>
