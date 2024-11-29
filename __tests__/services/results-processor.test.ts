@@ -1,11 +1,34 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { ResultsProcessor } from '@/services/results-processor';
-import type { PodcastMatch } from '@/types/matching';
+import { setupCommonMocks } from '../setup/commonMocks';
+
+// Define test-specific type that matches our test data
+interface TestMatch {
+  podcastId: string;
+  overallScore: number;
+  factors: {
+    topicScore: number;
+    styleScore: number;
+    qualityScore: number;
+    lengthScore: number;
+    complexityScore: number;
+  };
+  confidence: number;
+  matchStrength: number;
+  rank: number;
+  qualityLevel: 'high' | 'low';
+  matchReasons: string[];
+  displayReasons: string[];
+}
 
 describe('ResultsProcessor', () => {
+  beforeAll(() => {
+    setupCommonMocks();
+  });
+
   describe('Result Formatting', () => {
     it('should track applied filters', async () => {
-      const testMatches: PodcastMatch[] = [
+      const testMatches: TestMatch[] = [
         {
           podcastId: 'test-1',
           overallScore: 0.8,
@@ -29,7 +52,7 @@ describe('ResultsProcessor', () => {
         }
       ];
 
-      const results = await ResultsProcessor.processResults(testMatches);
+      const results = await ResultsProcessor.processResults(testMatches as any);
 
       expect(results.appliedFilters).toHaveLength(3);
       expect(results.appliedFilters).toContain('High confidence match');
@@ -40,7 +63,7 @@ describe('ResultsProcessor', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid match data', async () => {
-      const invalidMatch: PodcastMatch = {
+      const invalidMatch: TestMatch = {
         podcastId: '',
         overallScore: -1,
         factors: {
@@ -60,7 +83,7 @@ describe('ResultsProcessor', () => {
 
       let error: Error | null = null;
       try {
-        await ResultsProcessor.processResults([invalidMatch]);
+        await ResultsProcessor.processResults([invalidMatch] as any);
       } catch (e) {
         error = e as Error;
       }

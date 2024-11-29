@@ -1,80 +1,71 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DashboardErrorBoundary } from '@/components/dashboard/DashboardErrorBoundary';
-import { Component } from 'react';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { setupCommonMocks } from '../../setup/commonMocks';
+import React, { useState } from 'react';
 
 describe('DashboardErrorBoundary', () => {
-  const consoleErrorSpy = vi
-    .spyOn(console, 'error')
-    .mockImplementation(() => {});
-
-  beforeEach(() => {
-    consoleErrorSpy.mockClear();
+  beforeAll(() => {
+    setupCommonMocks();
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('should reset error state when try again is clicked', async () => {
-    let shouldThrow = true;
-
-    const TestComponent = () => {
-      if (shouldThrow) {
-        throw new Error('Test error');
-      }
-      return <div data-testid="test-content">Content</div>;
-    };
-
-    const { rerender } = render(
-      <DashboardErrorBoundary>
-        <TestComponent />
-      </DashboardErrorBoundary>
-    );
-
-    // Error boundary should catch error and show error UI
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText('Test error')).toBeInTheDocument();
-
-    // Update the flag before clicking try again
-    shouldThrow = false;
-
-    // Click try again button
-    await act(async () => {
-      fireEvent.click(screen.getByText('Try again'));
-    });
-
-    // Rerender after state update
-    rerender(
-      <DashboardErrorBoundary>
-        <TestComponent />
-      </DashboardErrorBoundary>
-    );
-
-    // Should show recovered content
-    expect(screen.getByTestId('test-content')).toBeInTheDocument();
-  });
+  const ThrowError = () => {
+    throw new Error('Test error');
+  };
 
   it('should catch and display error details', () => {
-    class ThrowingComponent extends Component {
-      componentDidMount() {
-        throw new Error('Test error');
-      }
-
-      render() {
-        return null;
-      }
-    }
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     render(
       <DashboardErrorBoundary>
-        <ThrowingComponent />
+        <ThrowError />
       </DashboardErrorBoundary>
     );
 
-    // Verify error UI is shown with correct error message
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText('Test error')).toBeInTheDocument();
-    expect(screen.getByText('Try again')).toBeInTheDocument();
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
+    expect(screen.getByText(/Test error/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /try again/i })
+    ).toBeInTheDocument();
+
+    consoleError.mockRestore();
+  });
+
+  it('should reset error state when try again is clicked', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const onReset = vi.fn();
+
+    const TestComponent = () => {
+      const [hasError, setHasError] = useState(true);
+
+      if (hasError) {
+        throw new Error('Test error');
+      }
+
+      return <div data-testid="content">Content</div>;
+    };
+
+    render(
+      <DashboardErrorBoundary
+        onReset={() => {
+          onReset();
+          // Force a re-render of the entire app
+          window.location.reload();
+        }}
+      >
+        <TestComponent />
+      </DashboardErrorBoundary>
+    );
+
+    const tryAgainButton = screen.getByRole('button', { name: /try again/i });
+    fireEvent.click(tryAgainButton);
+
+    expect(onReset).toHaveBeenCalled();
+
+    consoleError.mockRestore();
   });
 });

@@ -15,13 +15,16 @@ describe('DashboardLayout', () => {
       </DashboardLayout>
     );
 
-    // Find the active link
-    const activeLink = screen.getByRole('link', { name: 'Podcasts' });
-    expect(activeLink.className).toContain('bg-zinc-800');
-    expect(activeLink.className).toContain('text-white');
+    // Find links
+    const links = screen.getAllByRole('link');
+    const activeLink = links.find(
+      (link) => link.getAttribute('data-active') === 'true'
+    );
+    const inactiveLink = links.find(
+      (link) => link.getAttribute('data-active') === 'false'
+    );
 
-    // Find an inactive link
-    const inactiveLink = screen.getByRole('link', { name: 'Dashboard' });
-    expect(inactiveLink.className).toContain('text-zinc-400');
+    expect(activeLink).toHaveTextContent('Podcasts');
+    expect(inactiveLink).toHaveTextContent('Dashboard');
   });
 });

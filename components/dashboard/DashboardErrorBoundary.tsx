@@ -1,9 +1,10 @@
 'use client';
 
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import React from 'react';
 
 interface Props {
-  children: ReactNode;
+  children: React.ReactNode;
+  onReset?: () => void;
 }
 
 interface State {
@@ -15,7 +16,7 @@ interface State {
  * Error Boundary for Dashboard components
  * Catches and handles errors in the dashboard feature
  */
-export class DashboardErrorBoundary extends Component<Props, State> {
+export class DashboardErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -25,23 +26,24 @@ export class DashboardErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+    this.props.onReset?.();
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-4 rounded-lg bg-red-50 text-red-800">
-          <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
-          <p className="text-sm">{this.state.error?.message}</p>
+        <div className="p-4 text-center">
+          <h2 className="text-lg font-semibold text-red-500">
+            Something went wrong
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            {this.state.error?.message}
+          </p>
           <button
             onClick={this.handleReset}
-            className="mt-4 px-4 py-2 text-sm bg-red-100 hover:bg-red-200 rounded"
+            className="mt-4 rounded-md bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600"
           >
             Try again
           </button>
