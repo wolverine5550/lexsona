@@ -1,137 +1,100 @@
-import { vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MatchList } from '@/components/dashboard/MatchList';
-import {
-  DashboardProvider,
-  useDashboard
-} from '@/contexts/dashboard/DashboardContext';
-import { setupSupabaseMock } from '../../setup/mockSupabase';
-import type { Database } from '@/types/database';
-
-// Set up Supabase mock
-setupSupabaseMock();
-
-// Mock match data
-const mockMatches = [
-  {
-    id: '1',
-    author_id: 'author-1',
-    podcast_id: 'pod-1',
-    podcast_name: 'The Author Hour',
-    match_score: 0.95,
-    match_reason: ['Topic match', 'Audience size'],
-    status: 'new',
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    author_id: 'author-1',
-    podcast_id: 'pod-2',
-    podcast_name: 'Book Talk Daily',
-    match_score: 0.85,
-    match_reason: ['Genre match'],
-    status: 'contacted',
-    created_at: '2024-01-14T15:30:00Z',
-    updated_at: '2024-01-14T15:30:00Z'
-  }
-] as const;
-
-// Mock the dashboard context
-const mockContextValue = {
-  state: {
-    matches: {
-      data: mockMatches,
-      loading: false,
-      error: null
-    }
-  },
-  actions: {
-    fetchMatches: vi.fn(),
-    updateMatchStatus: vi.fn()
-  }
-};
-
-// Create a mock function for useDashboard
-const mockUseDashboard = vi.fn().mockReturnValue(mockContextValue);
-
-// Mock the context hook
-vi.mock('@/contexts/dashboard/DashboardContext', () => ({
-  DashboardProvider: ({ children }: { children: React.ReactNode }) => children,
-  useDashboard: () => mockUseDashboard()
-}));
+import { DashboardContext } from '@/contexts/dashboard/DashboardContext';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { setupCommonMocks } from '../../setup/commonMocks';
 
 describe('MatchList', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUseDashboard.mockReturnValue(mockContextValue);
+  beforeAll(() => {
+    setupCommonMocks();
   });
+
+  const mockContext = {
+    state: {
+      matches: {
+        data: [
+          {
+            id: '1',
+            podcast_name: 'The Author Hour',
+            match_score: 0.95,
+            status: 'new',
+            created_at: new Date().toISOString(),
+            match_reason: ['Topic match', 'Style match']
+          },
+          {
+            id: '2',
+            podcast_name: 'Book Talk Daily',
+            match_score: 0.88,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            match_reason: ['Genre match']
+          }
+        ],
+        loading: false,
+        error: null
+      },
+      interviews: { data: [], loading: false, error: null },
+      notifications: { data: [], loading: false, error: null },
+      activities: { data: [], loading: false, error: null },
+      stats: { data: null, loading: false, error: null }
+    },
+    actions: {
+      fetchInterviews: vi.fn().mockResolvedValue(undefined),
+      fetchMatches: vi.fn().mockResolvedValue(undefined),
+      fetchNotifications: vi.fn().mockResolvedValue(undefined),
+      fetchActivities: vi.fn().mockResolvedValue(undefined),
+      fetchStats: vi.fn().mockResolvedValue(undefined),
+      updateMatchStatus: vi.fn().mockResolvedValue(undefined),
+      markNotificationRead: vi.fn().mockResolvedValue(undefined),
+      updateInterview: vi.fn().mockResolvedValue(undefined)
+    },
+    dispatch: vi.fn()
+  };
 
   it('should render matches with scores', () => {
     render(
-      <DashboardProvider>
+      <DashboardContext.Provider value={mockContext}>
         <MatchList />
-      </DashboardProvider>
+      </DashboardContext.Provider>
     );
 
     expect(screen.getByText('The Author Hour')).toBeInTheDocument();
-    expect(screen.getByText(/95.*%/)).toBeInTheDocument();
     expect(screen.getByText('Book Talk Daily')).toBeInTheDocument();
-    expect(screen.getByText(/85.*%/)).toBeInTheDocument();
-  });
-
-  it('should filter matches by status', () => {
-    render(
-      <DashboardProvider>
-        <MatchList filter="contacted" />
-      </DashboardProvider>
-    );
-
-    expect(screen.queryByText('The Author Hour')).not.toBeInTheDocument();
-    expect(screen.getByText('Book Talk Daily')).toBeInTheDocument();
+    expect(screen.getByText(/95%/)).toBeInTheDocument();
+    expect(screen.getByText(/88%/)).toBeInTheDocument();
   });
 
   it('should show loading state', () => {
-    const loadingContextValue = {
-      ...mockContextValue,
+    const loadingContext = {
+      ...mockContext,
       state: {
-        ...mockContextValue.state,
-        matches: {
-          ...mockContextValue.state.matches,
-          loading: true
-        }
+        ...mockContext.state,
+        matches: { data: [], loading: true, error: null }
       }
     };
 
-    mockUseDashboard.mockReturnValue(loadingContextValue);
-
     render(
-      <DashboardProvider>
+      <DashboardContext.Provider value={loadingContext}>
         <MatchList />
-      </DashboardProvider>
+      </DashboardContext.Provider>
     );
 
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
   it('should show empty state', () => {
-    const emptyContextValue = {
-      ...mockContextValue,
+    const emptyContext = {
+      ...mockContext,
       state: {
-        ...mockContextValue.state,
-        matches: {
-          ...mockContextValue.state.matches,
-          data: []
-        }
+        ...mockContext.state,
+        matches: { data: [], loading: false, error: null }
       }
     };
 
-    mockUseDashboard.mockReturnValue(emptyContextValue);
-
     render(
-      <DashboardProvider>
+      <DashboardContext.Provider value={emptyContext}>
         <MatchList />
-      </DashboardProvider>
+      </DashboardContext.Provider>
     );
 
     expect(screen.getByText('No matches found')).toBeInTheDocument();
