@@ -1,71 +1,37 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import PodcastSearch from '@/components/podcast/PodcastSearch';
-import * as listenNotesModule from '@/utils/listen-notes';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { setupSupabaseMock } from '../../setup/mockSupabase';
 
-// Create a mock for the entire module
-vi.mock('@/utils/listen-notes', () => ({
-  searchPodcasts: vi.fn(),
-  cachePodcastResults: vi.fn()
-}));
+// Set up Supabase mock
+setupSupabaseMock();
 
-// Mock Next.js router
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    refresh: vi.fn()
-  })
-}));
-
-// Mock useSession hook
+// Mock hooks
 vi.mock('@/hooks/useSession', () => ({
-  useSession: () => ({
-    session: { user: { id: 'test-user' } },
-    isLoading: false
-  })
+  useSession: () => ({ session: null, isLoading: false })
 }));
 
-// Mock useSearchHistory hook
-vi.mock('@/hooks/useSearchHistory', () => ({
-  useSearchHistory: () => ({
-    recordSearch: vi.fn(),
-    recordClick: vi.fn(),
-    searchHistory: [],
-    isLoading: false,
-    clearHistory: vi.fn()
-  })
+// Mock search function
+const mockSearchPodcasts = vi.fn();
+vi.mock('@/utils/listen-notes', () => ({
+  searchPodcasts: (...args: any[]) => mockSearchPodcasts(...args)
 }));
 
-// Mock Supabase client
-vi.mock('@/utils/supabase/client', () => ({
-  createClient: () => ({
-    from: () => ({
-      select: () => Promise.resolve({ data: [], error: null }),
-      insert: () => ({
-        select: () => ({
-          single: () => Promise.resolve({ data: { id: '1' }, error: null })
-        })
-      }),
-      upsert: () => Promise.resolve({ error: null })
-    })
-  })
-}));
-
-// Mock SearchHistory component
-vi.mock('@/components/podcast/SearchHistory', () => ({
-  default: () => <div data-testid="search-history">Search History Mock</div>
-}));
-
-// Mock PodcastList component
+// Mock components
 vi.mock('@/components/podcast/PodcastList', () => ({
-  default: ({ podcasts }: any) => (
+  default: ({ podcasts }: { podcasts: any[] }) => (
     <div data-testid="podcast-list">
-      {podcasts.map((podcast: any) => (
-        <div key={podcast.id}>{podcast.title}</div>
+      {podcasts?.map((podcast) => (
+        <div key={podcast.id} data-testid="podcast-item">
+          {podcast.title}
+        </div>
       ))}
     </div>
   )
+}));
+
+vi.mock('@/components/podcast/SearchHistory', () => ({
+  default: () => <div>Search History</div>
 }));
 
 describe('PodcastSearch', () => {
@@ -73,57 +39,68 @@ describe('PodcastSearch', () => {
     vi.clearAllMocks();
   });
 
-  it('should handle search input correctly', async () => {
-    // Mock search response with next_offset
-    const mockResults = {
-      count: 1,
-      total: 1,
-      next_offset: 1,
-      results: [
-        {
-          id: '1',
-          title: 'Test Podcast',
-          publisher: 'Test Publisher',
-          image: 'test.jpg',
-          description: 'Test description',
-          website: 'https://test.com',
-          language: 'English',
-          categories: [{ id: 1, name: 'Technology' }],
-          total_episodes: 10,
-          listen_score: 80,
-          explicit_content: false,
-          latest_episode_id: 'ep1',
-          latest_pub_date_ms: 1234567890
-        }
-      ]
-    };
-
-    // Mock the search function
-    vi.mocked(listenNotesModule.searchPodcasts).mockResolvedValue(mockResults);
+  it('should handle successful search', async () => {
+    // Create a delayed mock response
+    mockSearchPodcasts.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              results: [
+                {
+                  id: '1',
+                  title: 'Test Podcast',
+                  description: 'Test description',
+                  image: 'test.jpg',
+                  publisher: 'Test Publisher',
+                  website: 'https://test.com',
+                  language: 'English',
+                  categories: [{ id: 1, name: 'Technology' }],
+                  total_episodes: 10,
+                  listen_score: 80,
+                  explicit_content: false,
+                  latest_episode_id: 'ep1',
+                  latest_pub_date_ms: 1234567890
+                }
+              ]
+            });
+          }, 100);
+        })
+    );
 
     render(<PodcastSearch />);
 
-    // Fill in search input
-    const searchInput = screen.getByPlaceholderText(/enter keywords/i);
-    fireEvent.change(searchInput, { target: { value: 'test search' } });
-
-    // Submit form
-    const form = screen.getByRole('form');
-    fireEvent.submit(form);
-
-    // Verify results are displayed
-    await waitFor(() => {
-      // First verify the search was called
-      expect(listenNotesModule.searchPodcasts).toHaveBeenCalled();
-
-      // Then check for the podcast title
-      const podcastTitle = screen.getByText('Test Podcast');
-      expect(podcastTitle).toBeInTheDocument();
-
-      // Then check for the podcast list
-      expect(screen.getByTestId('podcast-list')).toBeInTheDocument();
+    // Perform search
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: 'test' }
     });
+    fireEvent.submit(screen.getByRole('form'));
+
+    // Wait for loading state
+    const loadingState = await screen.findByTestId('loading-state');
+    expect(loadingState).toBeInTheDocument();
+
+    // Wait for results
+    const results = await screen.findByTestId('podcast-item');
+    expect(results).toHaveTextContent('Test Podcast');
+
+    // Verify loading state is gone
+    expect(screen.queryByTestId('loading-state')).not.toBeInTheDocument();
   });
 
-  // ... other tests ...
+  it('should handle search error', async () => {
+    mockSearchPodcasts.mockRejectedValueOnce(new Error('Search failed'));
+
+    render(<PodcastSearch />);
+
+    // Perform search
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: 'test' }
+    });
+    fireEvent.submit(screen.getByRole('form'));
+
+    // Wait for error message
+    const error = await screen.findByTestId('error-message');
+    expect(error).toHaveTextContent('Search failed');
+  });
 });

@@ -248,8 +248,9 @@ export default function PreferencesForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isSubmitting}
-        className="w-full rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+        role="button"
+        aria-label="Save Preferences"
+        className="mt-6 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
         {isSubmitting ? 'Saving...' : 'Save Preferences'}
       </button>

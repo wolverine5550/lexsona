@@ -21,10 +21,21 @@ beforeAll(() => {
       dispatchEvent: vi.fn()
     }))
   });
+
+  // Set up global error handlers
+  const originalError = global.console.error;
+  global.console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('Error: Uncaught [Error: Test error]')
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
 });
 
 afterAll(() => {
-  // Restore console.error
   vi.restoreAllMocks();
 });
 
@@ -32,11 +43,6 @@ afterAll(() => {
 afterEach(() => {
   cleanup(); // Clean up React components
   vi.clearAllMocks();
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Add missing TextEncoder/TextDecoder

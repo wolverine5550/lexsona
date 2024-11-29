@@ -1,10 +1,9 @@
 'use client';
 
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
@@ -30,22 +29,18 @@ export class DashboardErrorBoundary extends Component<Props, State> {
     console.error('Error caught by boundary:', error, errorInfo);
   }
 
-  handleTryAgain = () => {
+  handleReset = () => {
     this.setState({ hasError: false, error: null });
   };
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
       return (
         <div className="p-4 rounded-lg bg-red-50 text-red-800">
           <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
           <p className="text-sm">{this.state.error?.message}</p>
           <button
-            onClick={this.handleTryAgain}
+            onClick={this.handleReset}
             className="mt-4 px-4 py-2 text-sm bg-red-100 hover:bg-red-200 rounded"
           >
             Try again
@@ -54,8 +49,6 @@ export class DashboardErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return (
-      <div data-testid="error-boundary-content">{this.props.children}</div>
-    );
+    return this.props.children;
   }
 }

@@ -11,7 +11,6 @@ import { dashboardReducer } from './dashboardReducer';
 import { initialState, type DashboardState } from './dashboardTypes';
 import type { Database } from '@/types/database';
 import type { MatchWithPodcast } from '@/components/dashboard/MatchList';
-import type { InterviewWithPodcast } from '@/components/dashboard/InterviewSchedule';
 
 // Context type with state and actions
 export interface DashboardContextType {

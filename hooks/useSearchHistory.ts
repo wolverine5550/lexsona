@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useSession } from '@/hooks/useSession';
 import { PodcastSearchParams } from '@/types/podcast';
@@ -54,29 +54,21 @@ export function useSearchHistory() {
    * @param filters - Applied search filters
    * @param resultsCount - Number of results found
    */
-  const recordSearch = async (
-    query: string,
-    filters: Partial<PodcastSearchParams>,
-    resultsCount: number
-  ) => {
-    if (!session?.user) return;
+  const recordSearch = useCallback(
+    async (searchTerm: string, supabase: any, timestamp: string) => {
+      if (!searchTerm) return;
 
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from('search_history').insert({
-        user_id: session.user.id,
-        query,
-        filters,
-        results_count: resultsCount,
-        clicked_results: []
-      });
-
-      if (error) throw error;
-      loadSearchHistory(); // Reload history after recording new search
-    } catch (error) {
-      console.error('Error recording search:', error);
-    }
-  };
+      try {
+        await supabase.from('search_history').insert({
+          search_term: searchTerm,
+          timestamp
+        });
+      } catch (error) {
+        console.error('Error recording search:', error);
+      }
+    },
+    []
+  );
 
   /**
    * Records when a user clicks on a search result

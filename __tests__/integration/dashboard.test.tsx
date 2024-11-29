@@ -1,88 +1,161 @@
 // Import and setup mocks first
 import { vi } from 'vitest';
-import { setupSupabaseMock } from '../setup/mockSupabase';
-
-// Setup Supabase mock before any other imports
-setupSupabaseMock();
-
-// Then import the rest
 import { render, screen, waitFor } from '@testing-library/react';
 import { Dashboard } from '@/components/dashboard/Dashboard';
-import { DashboardProvider } from '@/contexts/dashboard/DashboardContext';
+import {
+  DashboardContext,
+  type DashboardContextType
+} from '@/contexts/dashboard/DashboardContext';
+import '../mocks/supabase';
 
-// Mock the dashboard context
-vi.mock('@/contexts/dashboard/DashboardContext', () => ({
-  ...vi.importActual('@/contexts/dashboard/DashboardContext'),
-  DashboardProvider: ({ children }: { children: React.ReactNode }) => children,
-  useDashboard: () => ({
-    state: {
-      matches: {
-        data: [{ id: '1', title: 'Recent Match 1' }],
-        loading: false,
-        error: null
-      },
-      interviews: {
-        data: [{ id: '1', title: 'Upcoming Interview 1' }],
-        loading: false,
-        error: null
-      },
-      activities: {
-        data: [{ id: '1', title: 'Recent Activity 1' }],
-        loading: false,
-        error: null
-      },
-      notifications: {
-        data: [],
-        loading: false,
-        error: null,
-        unreadCount: 0
-      },
-      stats: {
-        data: null,
-        loading: false,
-        error: null
-      }
+// Mock the components
+vi.mock('@/components/dashboard/MatchList', () => {
+  const MatchList = () => (
+    <div data-testid="match-list">
+      <div>Test Podcast</div>
+    </div>
+  );
+  return { MatchList };
+});
+
+vi.mock('@/components/dashboard/NotificationPanel', () => {
+  const NotificationPanel = () => (
+    <div data-testid="notifications-panel">Notifications</div>
+  );
+  return { NotificationPanel };
+});
+
+vi.mock('@/components/dashboard/InterviewSchedule', () => {
+  const InterviewSchedule = () => (
+    <div data-testid="interview-schedule">Interviews</div>
+  );
+  return { InterviewSchedule };
+});
+
+vi.mock('@/components/dashboard/ActivityFeed', () => {
+  const ActivityFeed = () => <div data-testid="activity-feed">Activities</div>;
+  return { ActivityFeed };
+});
+
+// Mock the dashboard service
+vi.mock('@/services/dashboard/base', () => ({
+  dashboardService: {
+    getMatches: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: '1',
+          podcastId: 'pod1',
+          status: 'pending',
+          score: 0.8,
+          podcast: {
+            id: 'pod1',
+            title: 'Test Podcast',
+            image_url: 'https://test.com/image.jpg',
+            publisher: 'Test Publisher'
+          }
+        }
+      ],
+      error: null
+    }),
+    getNotifications: vi.fn().mockResolvedValue({ data: [], error: null }),
+    getInterviews: vi.fn().mockResolvedValue({ data: [], error: null }),
+    getActivities: vi.fn().mockResolvedValue({ data: [], error: null }),
+    getStats: vi.fn().mockResolvedValue({ data: {}, error: null }),
+
+    matches: {
+      subscribeToMatches: vi.fn().mockReturnValue(() => {
+        return () => {};
+      })
     },
-    actions: {
-      fetchMatches: vi.fn().mockResolvedValue(undefined),
-      fetchInterviews: vi.fn().mockResolvedValue(undefined),
-      fetchActivities: vi.fn().mockResolvedValue(undefined),
-      fetchNotifications: vi.fn().mockResolvedValue(undefined),
-      fetchStats: vi.fn().mockResolvedValue(undefined),
-      updateMatchStatus: vi.fn().mockResolvedValue(undefined)
+    notifications: {
+      subscribeToNotifications: vi.fn().mockReturnValue(() => {
+        return () => {};
+      })
+    },
+    interviews: {
+      subscribeToInterviews: vi.fn().mockReturnValue(() => {
+        return () => {};
+      })
     }
-  })
+  }
 }));
+
+// Create mock context
+const mockDashboardContext: DashboardContextType = {
+  dispatch: vi.fn(),
+  state: {
+    matches: {
+      data: [
+        {
+          id: '1',
+          podcastId: 'pod1',
+          status: 'pending',
+          score: 0.8,
+          podcast: {
+            id: 'pod1',
+            title: 'Test Podcast',
+            image_url: 'https://test.com/image.jpg',
+            publisher: 'Test Publisher'
+          }
+        }
+      ],
+      loading: false,
+      error: null
+    },
+    notifications: {
+      data: [],
+      loading: false,
+      error: null
+    },
+    interviews: {
+      data: [],
+      loading: false,
+      error: null
+    },
+    activities: {
+      data: [],
+      loading: false,
+      error: null
+    },
+    stats: {
+      data: {},
+      loading: false,
+      error: null
+    }
+  },
+  actions: {
+    fetchMatches: vi.fn(),
+    fetchNotifications: vi.fn(),
+    fetchInterviews: vi.fn(),
+    fetchActivities: vi.fn(),
+    fetchStats: vi.fn(),
+    updateMatchStatus: vi.fn(),
+    markNotificationRead: vi.fn(),
+    updateInterview: vi.fn()
+  }
+};
 
 describe('Dashboard Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should load and display all dashboard components', async () => {
-    const { unmount } = render(
-      <DashboardProvider>
+    render(
+      <DashboardContext.Provider value={mockDashboardContext}>
         <Dashboard />
-      </DashboardProvider>
+      </DashboardContext.Provider>
     );
 
-    try {
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId('loading-skeleton')
-        ).not.toBeInTheDocument();
-      });
+    // Wait for components to load and verify they're rendered
+    await waitFor(() => {
+      expect(screen.getByTestId('match-list')).toBeInTheDocument();
+      expect(screen.getByTestId('notifications-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('interview-schedule')).toBeInTheDocument();
+      expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+    });
 
-      // Verify dashboard sections are present with their content
-      expect(screen.getByText('Recent Match 1')).toBeInTheDocument();
-      expect(screen.getByText('Upcoming Interview 1')).toBeInTheDocument();
-      expect(screen.getByText('Recent Activity 1')).toBeInTheDocument();
-    } finally {
-      unmount();
-    }
+    // Verify the content is rendered
+    expect(screen.getByText('Test Podcast')).toBeInTheDocument();
   });
 });

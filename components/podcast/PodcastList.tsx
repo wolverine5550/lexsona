@@ -105,7 +105,8 @@ function PodcastList({
   /**
    * Truncates text to a specified length with ellipsis
    */
-  const truncateText = (text: string, length: number) => {
+  const truncateText = (text: string | undefined | null, length: number) => {
+    if (!text) return '';
     if (text.length <= length) return text;
     return text.slice(0, length) + '...';
   };

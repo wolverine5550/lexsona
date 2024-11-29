@@ -13,7 +13,14 @@ export default defineConfig({
     globals: true,
     setupFiles: './vitest.setup.ts',
     testTimeout: 20000,
-    threads: false,
+    isolate: false,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: true,
+        isolate: false
+      }
+    },
     environmentOptions: {
       jsdom: {
         resources: 'usable',

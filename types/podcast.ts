@@ -60,17 +60,10 @@ export type PodcastMatchStatus =
 // Search parameters for podcast discovery
 export interface PodcastSearchParams {
   query: string;
-  offset?: number;
-  sort_by_date?: 0 | 1;
-  type?: 'episode' | 'podcast';
   language?: string;
+  sort_by_date?: number;
+  offset?: number;
   len_min?: number;
-  len_max?: number;
-  genre_ids?: string;
-  published_before?: number;
-  published_after?: number;
-  only_in?: string;
-  safe_mode?: 0 | 1;
 }
 
 export interface BatchProcessResult {

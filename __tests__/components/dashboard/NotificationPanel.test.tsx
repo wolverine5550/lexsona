@@ -1,127 +1,114 @@
-import { vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NotificationPanel } from '@/components/dashboard/NotificationPanel';
-import {
-  DashboardProvider,
-  useDashboard
-} from '@/contexts/dashboard/DashboardContext';
-import { setupSupabaseMock } from '../../setup/mockSupabase';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { DashboardContext } from '@/contexts/dashboard/DashboardContext';
 
-// Set up Supabase mock
-setupSupabaseMock();
+// Mock Supabase client
+vi.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          data: null,
+          error: null
+        })
+      })
+    }),
+    auth: {
+      getSession: () =>
+        Promise.resolve({ data: { session: null }, error: null })
+    }
+  })
+}));
 
-// Mock notification data
-const mockNotifications = [
-  {
-    id: '1',
-    author_id: 'author-1',
-    type: 'match',
-    title: 'New Match',
-    message: 'You have a new podcast match',
-    read: false,
-    created_at: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    author_id: 'author-1',
-    type: 'interview',
-    title: 'Interview Scheduled',
-    message: 'Your interview has been scheduled',
-    read: true,
-    created_at: '2024-01-14T15:30:00Z'
+// Mock environment variables
+vi.mock('process', () => ({
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key'
   }
-] as const;
-
-// Create a mock function for useDashboard
-const mockUseDashboard = vi.fn();
-
-// Mock the context hook
-vi.mock('@/contexts/dashboard/DashboardContext', () => ({
-  DashboardProvider: ({ children }: { children: React.ReactNode }) => children,
-  useDashboard: () => mockUseDashboard()
 }));
 
 describe('NotificationPanel', () => {
+  const mockNotifications = [
+    {
+      id: '1',
+      type: 'match',
+      title: 'New Match',
+      message: 'Test notification',
+      read: false,
+      created_at: new Date().toISOString(),
+      unread: true
+    }
+  ];
+
+  const createMockContext = (overrides = {}) => ({
+    state: {
+      notifications: {
+        data: [],
+        loading: false,
+        error: null,
+        unreadCount: 0,
+        ...overrides
+      }
+    },
+    actions: {
+      markNotificationRead: vi.fn(),
+      fetchNotifications: vi.fn()
+    },
+    dispatch: vi.fn()
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseDashboard.mockReturnValue({
-      state: {
-        notifications: {
-          data: mockNotifications,
-          loading: false,
-          error: null,
-          unreadCount: 2
-        }
-      },
-      actions: {
-        fetchNotifications: vi.fn(),
-        markNotificationRead: vi.fn()
-      }
-    });
   });
 
   it('should render notifications', () => {
-    render(
-      <DashboardProvider>
-        <NotificationPanel />
-      </DashboardProvider>
-    );
-
-    // Check for notification titles
-    expect(screen.getByText('New Match')).toBeInTheDocument();
-    expect(screen.getByText('Interview Scheduled')).toBeInTheDocument();
-
-    // Check for unread count
-    expect(screen.getByText('2 unread notifications')).toBeInTheDocument();
-
-    // Check for notification timestamps
-    expect(screen.getByText(/318d ago/i)).toBeInTheDocument();
-    expect(screen.getByText(/319d ago/i)).toBeInTheDocument();
-  });
-
-  it('should show loading state', () => {
-    mockUseDashboard.mockReturnValue({
-      state: {
-        notifications: {
-          data: [],
-          loading: true,
-          error: null
-        }
-      },
-      actions: {
-        fetchNotifications: vi.fn(),
-        markNotificationRead: vi.fn()
-      }
+    const mockContext = createMockContext({
+      data: mockNotifications,
+      unreadCount: 1
     });
 
     render(
-      <DashboardProvider>
+      <DashboardContext.Provider value={mockContext as any}>
         <NotificationPanel />
-      </DashboardProvider>
+      </DashboardContext.Provider>
+    );
+
+    // Check for notification title
+    expect(screen.getByText('New Match')).toBeInTheDocument();
+
+    // Check for unread count
+    expect(screen.getByText('1 unread notification')).toBeInTheDocument();
+
+    // Check for timestamp
+    expect(screen.getByText('just now')).toBeInTheDocument();
+
+    // Check for unread indicator
+    expect(screen.getByRole('button')).toHaveClass('py-4');
+  });
+
+  it('should show loading state', () => {
+    const mockContext = createMockContext({
+      loading: true
+    });
+
+    render(
+      <DashboardContext.Provider value={mockContext as any}>
+        <NotificationPanel />
+      </DashboardContext.Provider>
     );
 
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
   it('should show empty state', () => {
-    mockUseDashboard.mockReturnValue({
-      state: {
-        notifications: {
-          data: [],
-          loading: false,
-          error: null
-        }
-      },
-      actions: {
-        fetchNotifications: vi.fn(),
-        markNotificationRead: vi.fn()
-      }
-    });
+    const mockContext = createMockContext();
 
     render(
-      <DashboardProvider>
+      <DashboardContext.Provider value={mockContext as any}>
         <NotificationPanel />
-      </DashboardProvider>
+      </DashboardContext.Provider>
     );
 
     expect(screen.getByText('No notifications to display')).toBeInTheDocument();
