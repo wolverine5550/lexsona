@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect } from 'react';
 import { useDashboard } from '@/contexts/dashboard/DashboardContext';
 import { DashboardLoadingState } from './DashboardLoadingState';
