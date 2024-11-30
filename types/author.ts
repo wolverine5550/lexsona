@@ -1,37 +1,41 @@
-export type ExpertiseLevel = 'beginner' | 'intermediate' | 'expert';
-export type CommunicationStyle =
-  | 'casual'
-  | 'professional'
-  | 'academic'
-  | 'storyteller';
+export type SocialLinks = {
+  twitter?: string;
+  linkedin?: string;
+  website?: string;
+  instagram?: string;
+};
 
-export interface AuthorProfile {
-  id: string;
-  userId: string;
-  name: string;
-  bio: string;
-  expertise: ExpertiseLevel;
-  communicationStyle: CommunicationStyle;
-  books: BookInfo[];
-  topics: string[];
-  keyPoints: string[];
-  lastAnalyzed?: Date;
-}
-
-export interface BookInfo {
+export type AuthorWork = {
   id: string;
   title: string;
-  description: string;
+  coverImage: string;
+  publishDate: string;
+  publisher: string;
   genre: string[];
-  targetAudience: string[];
-  publishDate: Date;
-  keywords: string[];
-}
+  description: string;
+};
 
-export interface AuthorAnalysis {
-  topics: string[];
-  expertiseLevel: ExpertiseLevel;
-  communicationStyle: CommunicationStyle;
-  keyPoints: string[];
-  confidence: number;
-}
+export type AuthorInterview = {
+  id: string;
+  title: string;
+  podcastName: string;
+  date: string;
+  duration: string;
+  listenerCount: number;
+  episodeUrl: string;
+};
+
+export type Author = {
+  id: string;
+  name: string;
+  avatar: string;
+  bio: string;
+  location: string;
+  joinedDate: string;
+  socialLinks: SocialLinks;
+  works: AuthorWork[];
+  interviews: AuthorInterview[];
+  followers: number;
+  following: number;
+  totalListens: number;
+};
