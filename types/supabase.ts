@@ -1,3 +1,16 @@
+import type { User } from '@supabase/supabase-js';
+
+export interface ExtendedUser extends User {
+  email_verified?: boolean;
+}
+
+export interface SessionData {
+  id: string;
+  user?: User;
+  last_sign_in_at?: string;
+  current?: boolean;
+}
+
 export type Json =
   | string
   | number
