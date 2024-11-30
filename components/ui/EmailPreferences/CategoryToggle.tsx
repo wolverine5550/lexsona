@@ -1,10 +1,10 @@
 'use client';
 
-import { type EmailCategory, type EmailFrequency } from '@/types/settings';
+import { type EmailFrequency } from '@/types/settings';
 import { FrequencySelect } from './FrequencySelect';
 
 interface CategoryToggleProps {
-  category: EmailCategory;
+  category: string;
   label: string;
   description: string;
   enabled: boolean;
@@ -34,11 +34,10 @@ export function CategoryToggle({
   return (
     <div className="space-y-4">
       <div className="flex items-start space-x-3">
-        {/* Category Toggle */}
         <div className="flex items-center h-5">
           <input
-            id={`category-${category}`}
             type="checkbox"
+            id={`category-${category}`}
             checked={enabled}
             onChange={(e) => onEnabledChange(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -52,7 +51,7 @@ export function CategoryToggle({
           >
             {label}
           </label>
-          <p id={`${category}-description`} className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500" id={`${category}-description`}>
             {description}
           </p>
           {error?.enabled && (
@@ -61,7 +60,6 @@ export function CategoryToggle({
         </div>
       </div>
 
-      {/* Frequency Selection */}
       {enabled && (
         <div className="ml-8">
           <FrequencySelect

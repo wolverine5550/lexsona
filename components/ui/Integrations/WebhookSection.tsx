@@ -48,12 +48,16 @@ export function WebhookSection({
         <div className="flex items-center h-5">
           <input
             type="checkbox"
+            id="webhooks-enabled"
             {...register('webhooks.enabled')}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
         </div>
         <div className="ml-3">
-          <label className="text-sm font-medium text-gray-700">
+          <label
+            htmlFor="webhooks-enabled"
+            className="text-sm font-medium text-gray-700"
+          >
             Enable Webhooks
           </label>
           <p className="text-sm text-gray-500">
@@ -123,13 +127,19 @@ export function WebhookSection({
                   <div className="flex items-center h-5">
                     <input
                       type="checkbox"
-                      value={value}
+                      id={`event-${value}`}
                       {...register('webhooks.events')}
+                      value={value}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </div>
                   <div className="ml-3">
-                    <label className="text-sm text-gray-700">{label}</label>
+                    <label
+                      htmlFor={`event-${value}`}
+                      className="text-sm text-gray-700"
+                    >
+                      {label}
+                    </label>
                   </div>
                 </div>
               ))}

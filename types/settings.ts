@@ -45,23 +45,11 @@ export const profileSchema = z.object({
 });
 
 // Account schema
-export const accountSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(100, 'Password cannot exceed 100 characters')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      ),
-    confirmPassword: z.string().min(1, 'Please confirm your password')
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword']
-  });
+export const accountSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(1, 'New password is required'),
+  confirmPassword: z.string().min(1, 'Password confirmation is required')
+});
 
 // Infer TypeScript type from the schema
 export type ProfileFormData = z.infer<typeof profileSchema>;

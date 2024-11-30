@@ -2,11 +2,13 @@
 
 export function NotificationSettingsSkeleton() {
   return (
-    <div className="space-y-8 p-6 animate-pulse">
-      {/* Header Skeleton */}
+    <div
+      className="space-y-8 p-6 animate-pulse"
+      data-testid="notification-settings-skeleton"
+    >
       <div className="border-b border-gray-200 pb-4">
-        <div className="h-7 bg-gray-200 rounded w-1/4 mb-2"></div>
-        <div className="h-5 bg-gray-200 rounded w-2/3"></div>
+        <div className="h-7 bg-gray-200 rounded w-1/4 mb-2" />
+        <div className="h-5 bg-gray-200 rounded w-2/3" />
       </div>
 
       {/* Email Section Skeleton */}

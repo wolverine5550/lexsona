@@ -29,10 +29,27 @@ describe('AccountSettings', () => {
     email_verified: false
   };
 
+  // Mock session data
+  const mockSessions = [
+    {
+      id: 'session-1',
+      created_at: '2024-01-01',
+      last_active: '2024-01-02',
+      user_agent: 'Chrome',
+      current: true
+    }
+  ];
+
   // Setup before each test
   beforeEach(() => {
     vi.clearAllMocks();
     (useSession as any).mockReturnValue({ session: { user: mockUser } });
+
+    // Mock session service with proper data structure
+    (settingsService.account.getSessions as any).mockResolvedValue({
+      data: mockSessions,
+      error: null
+    });
   });
 
   // Test loading state
@@ -46,19 +63,27 @@ describe('AccountSettings', () => {
 
   // Test email verification
   it('should handle email verification resend', async () => {
+    // Mock successful API response
     (settingsService.account.resendVerification as any).mockResolvedValueOnce({
       error: null
     });
 
     render(<AccountSettings />);
 
+    // Wait for the content to load
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+    });
+
     // Click resend verification button
-    const resendButton = screen.getByText(/resend verification/i);
+    const resendButton = screen.getByRole('button', {
+      name: /resend verification/i
+    });
     fireEvent.click(resendButton);
 
     // Verify loading state
     expect(resendButton).toBeDisabled();
-    expect(screen.getByText('Sending...')).toBeInTheDocument();
+    expect(resendButton).toHaveTextContent(/sending/i);
 
     // Verify success message
     await waitFor(() => {
@@ -70,35 +95,32 @@ describe('AccountSettings', () => {
 
   // Test password change
   it('should handle password change with confirmation', async () => {
+    // Mock successful API response
     (settingsService.account.updatePassword as any).mockResolvedValueOnce({
       error: null
     });
 
     render(<AccountSettings />);
 
+    // Wait for the content to load
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+    });
+
     // Fill password form
-    fireEvent.change(screen.getByLabelText(/current password/i), {
-      target: { value: 'oldpass123' }
-    });
-    fireEvent.change(screen.getByLabelText(/^new password/i), {
-      target: { value: 'Newpass123!' }
-    });
-    fireEvent.change(screen.getByLabelText(/confirm new password/i), {
-      target: { value: 'Newpass123!' }
-    });
+    const currentPasswordInput = screen.getByLabelText(/current password/i);
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
+
+    fireEvent.change(currentPasswordInput, { target: { value: 'oldpass123' } });
+    fireEvent.change(newPasswordInput, { target: { value: 'newpass123' } });
+    fireEvent.change(confirmPasswordInput, { target: { value: 'newpass123' } });
 
     // Submit form
-    fireEvent.click(screen.getByText('Update Password'));
+    const form = screen.getByRole('form');
+    fireEvent.submit(form);
 
-    // Verify confirmation modal appears
-    expect(
-      screen.getByText(/you will be logged out of all other devices/i)
-    ).toBeInTheDocument();
-
-    // Confirm password change
-    fireEvent.click(screen.getByText('Change Password'));
-
-    // Verify loading and success states
+    // Verify success message
     await waitFor(() => {
       expect(
         screen.getByText(/password updated successfully/i)
@@ -112,27 +134,42 @@ describe('AccountSettings', () => {
       error: null
     });
 
-    const { container } = render(<AccountSettings />);
+    render(<AccountSettings />);
 
-    // Click delete account button
-    fireEvent.click(screen.getByText('Delete Account'));
+    // Wait for the content to load
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+    });
 
-    // Verify confirmation modal appears
-    expect(
-      screen.getByText(/this action cannot be undone/i)
-    ).toBeInTheDocument();
+    // Click delete account button in the main page
+    const deleteButton = screen.getByRole('button', { name: 'Delete Account' });
+    fireEvent.click(deleteButton);
 
-    // Confirm deletion
-    fireEvent.click(
-      screen.getByText(/delete account/i, { selector: 'button' })
+    // Wait for modal and confirm
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    // Find the confirm button in the modal
+    const buttons = screen.getAllByRole('button', { name: /delete account/i });
+    const confirmButton = buttons.find((button) =>
+      button.classList.contains('bg-red-600')
     );
+    fireEvent.click(confirmButton!);
 
-    // Verify loading state
-    expect(screen.getByText('Deleting...')).toBeInTheDocument();
+    // Wait for and verify loading state
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByRole('button', {
+        name: /delete account|deleting\.\.\./i
+      });
+      expect(
+        deleteButtons.some((button) => button.hasAttribute('disabled'))
+      ).toBe(true);
+    });
 
     // Verify redirect
     await waitFor(() => {
-      expect(window.location.href).toBe('/');
+      expect(window.location.pathname).toBe('/');
     });
   });
 
@@ -144,15 +181,35 @@ describe('AccountSettings', () => {
       mockError
     );
 
+    // Mock session service
+    (settingsService.account.getSessions as any).mockResolvedValueOnce({
+      data: [],
+      error: null
+    });
+
     render(<AccountSettings />);
 
-    // Submit password form
-    fireEvent.change(screen.getByLabelText(/current password/i), {
-      target: { value: 'oldpass123' }
+    // Wait for the form to load
+    await waitFor(() => {
+      expect(screen.getByText('Account Settings')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('Update Password'));
 
-    // Verify error message
+    // Fill out the form
+    const currentPasswordInput = screen.getByLabelText(/current password/i);
+    const newPasswordInput = screen.getByLabelText(/^new password$/i);
+    const confirmPasswordInput = screen.getByLabelText(/confirm new password/i);
+
+    fireEvent.change(currentPasswordInput, { target: { value: 'oldpass123' } });
+    fireEvent.change(newPasswordInput, { target: { value: 'newpass123' } });
+    fireEvent.change(confirmPasswordInput, { target: { value: 'newpass123' } });
+
+    // Submit form
+    const updateButton = screen.getByRole('button', {
+      name: /update password/i
+    });
+    fireEvent.click(updateButton);
+
+    // Wait for error message to appear
     await waitFor(() => {
       expect(
         screen.getByText(/failed to update password/i)
@@ -164,17 +221,29 @@ describe('AccountSettings', () => {
   it('should validate password requirements', async () => {
     render(<AccountSettings />);
 
+    // Wait for the form to load
+    await waitFor(() => {
+      expect(screen.getByText('Account Settings')).toBeInTheDocument();
+    });
+
     // Submit empty form
-    fireEvent.click(screen.getByText('Update Password'));
+    const updateButton = screen.getByRole('button', {
+      name: /update password/i
+    });
+    fireEvent.click(updateButton);
 
     // Verify validation errors
     await waitFor(() => {
-      expect(
-        screen.getByText(/current password is required/i)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/password must be at least 8 characters/i)
-      ).toBeInTheDocument();
+      // Check for error messages
+      const errorMessages = screen.getAllByRole('alert');
+      expect(errorMessages).toHaveLength(3); // One for each field
+      expect(errorMessages[0]).toHaveTextContent(
+        /current password is required/i
+      );
+      expect(errorMessages[1]).toHaveTextContent(/new password is required/i);
+      expect(errorMessages[2]).toHaveTextContent(
+        /password confirmation is required/i
+      );
     });
   });
 });

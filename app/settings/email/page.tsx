@@ -56,7 +56,7 @@ export default function EmailPreferencesPage() {
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
-  const [submitStatus, setSubmitStatus] = useState<{
+  const [status, setStatus] = useState<{
     type: 'success' | 'error';
     message: string;
   } | null>(null);
@@ -126,7 +126,7 @@ export default function EmailPreferencesPage() {
         }
       } catch (error) {
         console.error('Failed to load email preferences:', error);
-        setSubmitStatus({
+        setStatus({
           type: 'error',
           message: 'Failed to load email preferences'
         });
@@ -143,16 +143,22 @@ export default function EmailPreferencesPage() {
     if (!user?.id) return;
 
     try {
-      setSubmitStatus(null);
+      setStatus(null);
 
-      const { error } = await settingsService.email.updatePreferences(
+      const result = await settingsService.email.updatePreferences(
         user.id,
         data
       );
 
-      if (error) throw error;
+      if (result.error) {
+        setStatus({
+          type: 'error',
+          message: 'Failed to update email preferences'
+        });
+        return;
+      }
 
-      setSubmitStatus({
+      setStatus({
         type: 'success',
         message: 'Email preferences updated successfully'
       });
@@ -161,7 +167,7 @@ export default function EmailPreferencesPage() {
       reset(data);
     } catch (error) {
       console.error('Failed to update email preferences:', error);
-      setSubmitStatus({
+      setStatus({
         type: 'error',
         message: 'Failed to update email preferences'
       });
@@ -364,16 +370,22 @@ export default function EmailPreferencesPage() {
         </div>
       </div>
 
-      {/* Form Actions */}
-      <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-        <button
-          type="button"
-          onClick={() => reset()}
-          disabled={!isDirty || isSubmitting}
-          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500 disabled:opacity-50"
+      {/* Status Messages */}
+      {status && (
+        <div
+          role="alert"
+          className={`mt-4 p-4 rounded-md ${
+            status.type === 'success'
+              ? 'bg-green-50 text-green-800'
+              : 'bg-red-50 text-red-800'
+          }`}
         >
-          Cancel
-        </button>
+          {status.message}
+        </div>
+      )}
+
+      {/* Submit Button */}
+      <div className="flex justify-end pt-6 border-t border-gray-200">
         <button
           type="submit"
           disabled={!isDirty || isSubmitting}
@@ -382,21 +394,6 @@ export default function EmailPreferencesPage() {
           {isSubmitting ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
-
-      {/* Status Messages */}
-      {submitStatus && (
-        <div
-          className={`mt-4 p-4 rounded-md ${
-            submitStatus.type === 'success'
-              ? 'bg-green-50 text-green-800'
-              : 'bg-red-50 text-red-800'
-          }`}
-          role="alert"
-          aria-live="polite"
-        >
-          {submitStatus.message}
-        </div>
-      )}
     </form>
   );
 }

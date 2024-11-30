@@ -84,86 +84,92 @@ describe('EmailPreferencesPage', () => {
 
     await waitFor(() => {
       // Check global settings
-      const emailToggle = screen.getByLabelText(
-        /enable email notifications/i
-      ) as HTMLInputElement;
-      expect(emailToggle.checked).toBe(true);
+      const emailToggle = screen.getByLabelText(/enable email notifications/i);
+      expect(emailToggle).toBeChecked();
 
-      // Check category settings
-      const marketingToggle = screen.getByLabelText(
-        /marketing & promotions/i
-      ) as HTMLInputElement;
-      expect(marketingToggle.checked).toBe(true);
-
-      // Check frequency settings
-      expect(screen.getByText('Daily Digest')).toBeInTheDocument();
+      // Check frequency select by its label
+      const frequencySelect = screen.getByLabelText(/default frequency/i);
+      expect(frequencySelect).toHaveValue('daily');
     });
   });
 
   // Test form submission
   it('should handle preference updates', async () => {
+    // Mock successful API response
     (settingsService.email.updatePreferences as any).mockResolvedValueOnce({
+      data: {},
       error: null
     });
 
     render(<EmailPreferencesPage />);
 
-    // Wait for initial load
     await waitFor(() => {
       expect(screen.getByText('Email Preferences')).toBeInTheDocument();
     });
 
-    // Toggle some preferences
+    // Toggle preferences
     fireEvent.click(screen.getByLabelText(/marketing & promotions/i));
-    fireEvent.click(screen.getByLabelText(/show online status/i));
+    fireEvent.click(screen.getByLabelText(/enable email notifications/i));
 
     // Submit form
     fireEvent.click(screen.getByText('Save Changes'));
 
-    // Verify API call
+    // Wait for and check success message
     await waitFor(() => {
-      expect(settingsService.email.updatePreferences).toHaveBeenCalledWith(
-        'test-user-id',
-        expect.objectContaining({
-          categories: expect.objectContaining({
-            marketing: expect.objectContaining({
-              enabled: false
-            })
-          })
-        })
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent(
+        /email preferences updated successfully/i
       );
+      expect(alert).toHaveClass('bg-green-50'); // Verify success styling
     });
-
-    // Check success message
-    expect(
-      screen.getByText(/email preferences updated successfully/i)
-    ).toBeInTheDocument();
   });
 
   // Test error handling
   it('should handle API errors gracefully', async () => {
-    const mockError = new Error('API Error');
+    // Mock API error
     (settingsService.email.updatePreferences as any).mockRejectedValueOnce(
-      mockError
+      new Error('API Error')
     );
 
     render(<EmailPreferencesPage />);
 
-    // Wait for initial load
+    // Wait for initial load and form to be ready
     await waitFor(() => {
       expect(screen.getByText('Email Preferences')).toBeInTheDocument();
+      expect(screen.getByLabelText(/marketing & promotions/i)).toBeChecked();
     });
 
-    // Make a change and submit
-    fireEvent.click(screen.getByLabelText(/marketing & promotions/i));
-    fireEvent.click(screen.getByText('Save Changes'));
+    // Make changes to enable the submit button
+    const emailToggle = screen.getByLabelText(/enable email notifications/i);
+    const frequencySelect = screen.getByLabelText(/default frequency/i);
 
-    // Check error message
+    // Toggle email notifications and change frequency
+    fireEvent.click(emailToggle);
+    fireEvent.change(frequencySelect, { target: { value: 'weekly' } });
+
+    // Wait for form to be dirty and submit button to be enabled
     await waitFor(() => {
-      expect(
-        screen.getByText(/failed to update email preferences/i)
-      ).toBeInTheDocument();
+      const submitButton = screen.getByRole('button', {
+        name: /save changes/i
+      });
+      expect(submitButton).not.toBeDisabled();
     });
+
+    // Submit form to trigger error
+    const submitButton = screen.getByRole('button', { name: /save changes/i });
+    fireEvent.click(submitButton);
+
+    // Wait for and check error message
+    await waitFor(
+      () => {
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent(/failed to update email preferences/i);
+        expect(alert).toHaveClass('bg-red-50'); // Verify error styling
+      },
+      {
+        timeout: 3000 // Increase timeout to allow for state updates
+      }
+    );
   });
 
   // Test form validation

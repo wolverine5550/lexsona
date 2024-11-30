@@ -29,17 +29,29 @@ export function FrequencySelect({
     { value: 'never', label: 'Never' }
   ] as const;
 
+  // Add 'frequency-' prefix to IDs
+  const errorId = `frequency-${name}-error`;
+  const selectId = `frequency-${name}`;
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
+      <label
+        htmlFor={selectId}
+        className="block text-sm font-medium text-gray-700"
+      >
+        {name}
+      </label>
       <select
-        id={`frequency-${name}`}
+        id={selectId}
         value={value}
         onChange={(e) => onChange(e.target.value as EmailFrequency)}
         disabled={disabled}
-        className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
-          disabled ? 'bg-gray-100' : ''
+        className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+          error
+            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
         }`}
-        aria-describedby={error ? `${name}-error` : undefined}
+        aria-describedby={error ? errorId : undefined}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -48,7 +60,7 @@ export function FrequencySelect({
         ))}
       </select>
       {error && (
-        <p className="mt-1 text-sm text-red-600" id={`${name}-error`}>
+        <p className="mt-2 text-sm text-red-600" id={errorId}>
           {error}
         </p>
       )}

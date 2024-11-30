@@ -57,7 +57,7 @@ describe('FrequencySelect', () => {
   });
 
   it('should have proper accessibility attributes', () => {
-    const error = 'Test error';
+    const error = 'This field is required';
     render(<FrequencySelect {...defaultProps} error={error} />);
 
     const select = screen.getByRole('combobox');

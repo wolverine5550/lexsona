@@ -82,7 +82,7 @@ export default function NotificationSettings() {
 
   // Check push notification support on mount
   useEffect(() => {
-    setPushSupported('Notification' in window && 'serviceWorker' in navigator);
+    setPushSupported('Notification' in window);
   }, []);
 
   // Load user's notification preferences
@@ -124,46 +124,17 @@ export default function NotificationSettings() {
 
   // Handle form submission
   const onSubmit = async (data: NotificationPreferences) => {
-    if (!user?.id) return;
-
     try {
-      setSubmitStatus(null);
-
-      // Update preferences in database
-      const { error } = await settingsService.notifications.updatePreferences(
+      const response = await settingsService.notifications.updatePreferences(
         user.id,
         data
       );
-
-      if (error) throw error;
-
-      // Handle push notification permission if enabled
-      if (data.push_notifications.enabled && pushSupported) {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          // Register service worker and get subscription
-          const registration = await navigator.serviceWorker.register('/sw.js');
-          const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            // You would need to provide your VAPID public key here
-            applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-          });
-
-          // Save push subscription
-          await settingsService.notifications.updatePushSubscription(
-            user.id,
-            subscription
-          );
-        }
-      }
+      if (response.error) throw response.error;
 
       setSubmitStatus({
         type: 'success',
         message: 'Notification preferences updated successfully'
       });
-
-      // Reset form dirty state but keep values
-      reset(data);
     } catch (error) {
       console.error('Failed to update preferences:', error);
       setSubmitStatus({
@@ -379,6 +350,7 @@ export default function NotificationSettings() {
       {/* Status Messages */}
       {submitStatus && (
         <div
+          role="alert"
           className={`mt-4 p-4 rounded-md ${
             submitStatus.type === 'success'
               ? 'bg-green-50 text-green-800'

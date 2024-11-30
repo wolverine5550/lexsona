@@ -212,7 +212,18 @@ export default function PrivacySettings() {
 
   // Show loading skeleton
   if (isLoading) {
-    return <PrivacySettingsSkeleton />;
+    return (
+      <div
+        data-testid="privacy-settings-skeleton"
+        className="space-y-8 p-6 animate-pulse"
+      >
+        <div className="border-b border-gray-200 pb-4">
+          <div className="h-7 bg-gray-200 rounded w-1/4 mb-2" />
+          <div className="h-5 bg-gray-200 rounded w-2/3" />
+        </div>
+        {/* Rest of skeleton content */}
+      </div>
+    );
   }
 
   // Radio group component with accessibility
