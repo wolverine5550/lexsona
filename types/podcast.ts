@@ -38,13 +38,20 @@ export interface PodcastSearchResponse {
 
 // Enhanced podcast match type for our application
 export interface PodcastMatch {
-  podcast: Podcast;
-  score: number; // Matching score (0-1)
-  matchReasons: string[]; // Array of reasons why this podcast matches
-  bookId: string; // Reference to the book this match is for
-  status: PodcastMatchStatus; // Current status of the match
-  lastContactedAt?: Date | null;
-  notes?: string; // Optional notes about the match/outreach
+  id: string;
+  podcastId: string;
+  authorId: string;
+  bookId: string;
+  initialContactDate: string;
+  lastFollowUpDate?: string;
+  outcome: MatchOutcome;
+  responseDate?: string;
+  notes?: string;
+  emailThread?: string;
+  followUpCount: number;
+  matchConfidence: number;
+  matchReasons: string[];
+  score: number;
 }
 
 // Status of a podcast match
@@ -130,4 +137,197 @@ export interface PodcastAnalysis {
  */
 export interface EnhancedPodcast extends PodcastBase {
   analysis?: PodcastAnalysis;
+}
+
+/**
+ * Represents the status of a podcast episode in relation to an author
+ * - SAVED: Author has saved this episode for later
+ * - MATCHED: Author has been matched/invited to this podcast
+ * - SCHEDULED: Interview has been scheduled
+ * - RECORDED: Interview has been recorded
+ * - PUBLISHED: Episode has been published
+ */
+export type PodcastStatus =
+  | 'SAVED'
+  | 'MATCHED'
+  | 'SCHEDULED'
+  | 'RECORDED'
+  | 'PUBLISHED';
+
+/**
+ * Represents a podcast show
+ */
+export interface PodcastShow {
+  id: string;
+  name: string;
+  description: string;
+  coverImage: string;
+  hostName: string;
+  category: string[];
+  averageListeners: number;
+  websiteUrl: string;
+  rssUrl?: string;
+  socialLinks: {
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+}
+
+/**
+ * Represents a specific episode of a podcast
+ */
+export interface PodcastEpisode {
+  id: string;
+  showId: string;
+  title: string;
+  description: string;
+  publishDate: string;
+  duration: string;
+  listenerCount: number;
+  audioUrl: string;
+  transcriptUrl?: string;
+}
+
+/**
+ * Represents an author's interaction with a podcast episode
+ */
+export interface PodcastInteraction {
+  id: string;
+  authorId: string;
+  episodeId: string;
+  showId: string;
+  status: PodcastStatus;
+  savedDate: string;
+  notes?: string;
+  matchDate?: string;
+  scheduledDate?: string;
+  recordingDate?: string;
+  publishDate?: string;
+  preparationNotes?: string;
+  followUpNotes?: string;
+}
+
+/**
+ * Represents the outcome of a podcast match attempt
+ */
+export type MatchOutcome =
+  | 'PENDING' // Initial outreach sent, waiting for response
+  | 'ACCEPTED' // Host accepted the interview request
+  | 'DECLINED' // Host declined the interview request
+  | 'NO_RESPONSE' // No response received after follow-ups
+  | 'CANCELLED' // Interview was scheduled but cancelled
+  | 'COMPLETED'; // Interview was successfully completed
+
+/**
+ * Extended match info with podcast details
+ */
+export interface PodcastMatchWithDetails extends PodcastMatch {
+  podcast: {
+    name: string;
+    hostName: string;
+    coverImage: string;
+    category: string[];
+    averageListeners: number;
+  };
+}
+
+/**
+ * Type of contact made with a podcast host
+ */
+export type ContactType =
+  | 'EMAIL' // Initial or follow-up email
+  | 'CALL' // Phone call
+  | 'SOCIAL' // Social media interaction
+  | 'MEETING' // Video/in-person meeting
+  | 'OTHER'; // Other form of contact
+
+/**
+ * Status of a contact attempt
+ */
+export type ContactStatus =
+  | 'SENT' // Outreach was sent
+  | 'RECEIVED' // Got a response
+  | 'NO_REPLY' // No response after follow-up period
+  | 'SCHEDULED' // Meeting/call scheduled
+  | 'COMPLETED'; // Interaction completed
+
+/**
+ * Represents a single contact interaction with a podcast host
+ */
+export interface ContactHistory {
+  id: string;
+  podcastId: string;
+  authorId: string;
+  matchId: string;
+  type: ContactType;
+  status: ContactStatus;
+  date: string;
+  subject?: string;
+  content: string;
+  response?: string;
+  responseDate?: string;
+  nextFollowUpDate?: string;
+  notes?: string;
+  attachments?: string[];
+  tags?: string[];
+}
+
+/**
+ * Extended contact history with podcast details
+ */
+export interface ContactHistoryWithDetails extends ContactHistory {
+  podcast: {
+    name: string;
+    hostName: string;
+    coverImage: string;
+    email?: string;
+  };
+}
+
+/**
+ * Types of notes that can be added to a podcast interaction
+ */
+export type NoteType =
+  | 'PREPARATION' // Pre-interview preparation notes
+  | 'TALKING_POINT' // Key points to discuss
+  | 'FOLLOW_UP' // Post-interview follow-up items
+  | 'FEEDBACK' // Feedback about the interaction
+  | 'GENERAL'; // General notes
+
+/**
+ * Priority level for notes
+ */
+export type NotePriority = 'HIGH' | 'MEDIUM' | 'LOW';
+
+/**
+ * Represents a single note or annotation
+ */
+export interface PodcastNote {
+  id: string;
+  podcastId: string;
+  authorId: string;
+  matchId?: string;
+  contactId?: string;
+  type: NoteType;
+  priority: NotePriority;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  dueDate?: string;
+  completedAt?: string;
+  attachments?: string[];
+  tags?: string[];
+  relatedNotes?: string[]; // IDs of related notes
+}
+
+/**
+ * Extended note with related podcast details
+ */
+export interface PodcastNoteWithDetails extends PodcastNote {
+  podcast: {
+    name: string;
+    hostName: string;
+    coverImage: string;
+  };
 }

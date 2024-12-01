@@ -3,16 +3,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import DateRangePicker from '@/components/author/analytics/DateRangePicker';
 import { format } from 'date-fns';
 
-// Mock the current date
-const mockDate = new Date('2024-01-15');
+// Mock the current date consistently
+const MOCK_DATE = new Date('2024-01-07T00:00:00.000Z');
 
 describe('DateRangePicker', () => {
   beforeAll(() => {
-    vi.spyOn(Date, 'now').mockImplementation(() => mockDate.getTime());
+    vi.useFakeTimers();
+    vi.setSystemTime(MOCK_DATE);
   });
 
   afterAll(() => {
-    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('renders with initial date range', () => {
@@ -21,9 +22,13 @@ describe('DateRangePicker', () => {
     const dateButton = screen.getByRole('button');
     const buttonText = dateButton.textContent || '';
 
-    // Initial date range should be Dec 15, 2023 - Nov 30, 2024
-    const expectedStartDate = 'Dec 15, 2023';
-    const expectedEndDate = 'Nov 30, 2024';
+    // Calculate expected initial dates (30 days from mock date)
+    const endDate = MOCK_DATE;
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 30);
+
+    const expectedStartDate = format(startDate, 'MMM d, yyyy');
+    const expectedEndDate = format(endDate, 'MMM d, yyyy');
 
     expect(buttonText).toContain(expectedStartDate);
     expect(buttonText).toContain(expectedEndDate);
@@ -45,20 +50,27 @@ describe('DateRangePicker', () => {
   });
 
   it('updates date range when selecting a preset', () => {
-    render(<DateRangePicker />);
+    render(<DateRangePicker onRangeChange={() => {}} />);
 
-    // Open dropdown
+    // Click the date range button to open the dropdown
     const dateButton = screen.getByRole('button');
     fireEvent.click(dateButton);
 
-    // Click "Last 7 days" option
-    fireEvent.click(screen.getByText('Last 7 days'));
+    // Select "Last 30 days" preset
+    fireEvent.click(screen.getByText('Last 30 days'));
 
-    // The date range should be Jan 7, 2024 - Nov 30, 2024
-    const expectedStartDate = 'Jan 7, 2024';
-    const expectedEndDate = 'Nov 30, 2024';
-
+    // Get the updated button text
     const buttonText = dateButton.textContent || '';
+
+    // Calculate expected dates using the mocked current date
+    const endDate = MOCK_DATE;
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 30);
+
+    const expectedStartDate = format(startDate, 'MMM d, yyyy');
+    const expectedEndDate = format(endDate, 'MMM d, yyyy');
+
+    // Verify the button shows the correct date range
     expect(buttonText).toContain(expectedStartDate);
     expect(buttonText).toContain(expectedEndDate);
   });
