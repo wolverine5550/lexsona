@@ -13,7 +13,8 @@ export const metadata: Metadata = {
     'View detailed analytics and insights about your content performance'
 };
 
-async function getAuthorAnalytics(id: string): Promise<Author | null> {
+// Export getAuthorAnalytics for testing
+export async function getAuthorAnalytics(id: string): Promise<Author | null> {
   // TODO: Implement actual API call
   return null;
 }
@@ -27,6 +28,7 @@ export default async function AnalyticsDashboard({
 
   if (!authorData) {
     notFound();
+    return;
   }
 
   return (

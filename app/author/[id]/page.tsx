@@ -33,7 +33,8 @@ export async function generateMetadata({
   };
 }
 
-async function getAuthor(id: string): Promise<Author | null> {
+// Export getAuthor for testing
+export async function getAuthor(id: string): Promise<Author | null> {
   // TODO: Implement actual API call
   return null;
 }
@@ -47,6 +48,7 @@ export default async function AuthorProfile({
 
   if (!author) {
     notFound();
+    return;
   }
 
   return (

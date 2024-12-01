@@ -12,20 +12,33 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(author.avatar);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrors({});
 
     const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+
+    // Validate required fields
+    if (!name.trim()) {
+      setErrors((prev) => ({ ...prev, name: 'Name is required' }));
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      // TODO: Implement API call to update profile
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulated API call
+      // Simulated API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Only navigate after API call completes
       router.push(`/author/${author.id}`);
       router.refresh();
     } catch (error) {
       console.error('Failed to update profile:', error);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -42,7 +55,12 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={handleSubmit}
+      data-testid="edit-profile-form"
+      aria-label="Edit profile form"
+    >
       {/* Avatar Upload */}
       <div className="space-y-4">
         <label className="block text-sm font-medium text-gray-700">
@@ -74,6 +92,7 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
               accept="image/*"
               className="hidden"
               onChange={handleAvatarChange}
+              data-testid="avatar-input"
             />
           </label>
         </div>
@@ -92,10 +111,16 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
             type="text"
             id="name"
             name="name"
+            required
             defaultValue={author.name}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-            required
+            aria-label="Author name"
           />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.name}
+            </p>
+          )}
         </div>
 
         <div>
@@ -108,9 +133,10 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
           <textarea
             id="bio"
             name="bio"
-            defaultValue={author.bio}
             rows={4}
+            defaultValue={author.bio}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+            aria-label="Author biography"
           />
         </div>
 
@@ -127,6 +153,7 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
             name="location"
             defaultValue={author.location}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+            aria-label="Author location"
           />
         </div>
       </div>
@@ -148,6 +175,7 @@ const EditProfileForm = ({ author }: EditProfileFormProps) => {
               name={`socialLinks.${platform}`}
               defaultValue={url}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+              aria-label={`${platform} profile URL`}
             />
           </div>
         ))}

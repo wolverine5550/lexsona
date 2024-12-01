@@ -8,18 +8,18 @@ interface ProfileStatsProps {
 const ProfileStats = ({ author }: ProfileStatsProps) => {
   const stats = [
     {
-      label: 'Followers',
-      value: author.followers.toLocaleString(),
-      icon: Users
-    },
-    {
       label: 'Total Listens',
-      value: author.totalListens.toLocaleString(),
+      value: author.totalListens,
       icon: Headphones
     },
     {
+      label: 'Followers',
+      value: author.followers,
+      icon: Users
+    },
+    {
       label: 'Published Works',
-      value: author.works.length.toString(),
+      value: author.works.length,
       icon: BookOpen
     }
   ];
@@ -30,13 +30,20 @@ const ProfileStats = ({ author }: ProfileStatsProps) => {
         <div
           key={stat.label}
           className="bg-white rounded-lg shadow-sm p-6 flex items-center space-x-4"
+          data-testid="stat-card"
         >
           <div className="p-3 bg-blue-50 rounded-full">
             <stat.icon className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold">{stat.value}</p>
-            <p className="text-gray-600">{stat.label}</p>
+            <p className="text-2xl font-bold">{stat.value.toLocaleString()}</p>
+            <p
+              className="text-gray-600"
+              data-testid="stat-label"
+              aria-label={`${stat.label}: ${stat.value.toLocaleString()}`}
+            >
+              {stat.label}
+            </p>
           </div>
         </div>
       ))}

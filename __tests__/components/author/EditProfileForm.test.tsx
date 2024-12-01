@@ -1,11 +1,18 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EditProfileForm from '@/components/author/EditProfileForm';
-import { Author } from '@/types/author';
+import { useRouter } from 'next/navigation';
+import { mockAuthor } from '@/__tests__/setup/commonMocks';
 
 // Mock next/navigation
+const mockRouter = {
+  push: vi.fn(),
+  back: vi.fn(),
+  refresh: vi.fn()
+};
+
 vi.mock('next/navigation', () => ({
-  useRouter: vi.fn()
+  useRouter: () => mockRouter
 }));
 
 // Mock next/image
@@ -14,37 +21,9 @@ vi.mock('next/image', () => ({
   default: (props: any) => <img {...props} />
 }));
 
-const mockAuthor: Author = {
-  id: '1',
-  name: 'John Doe',
-  avatar: '/images/avatars/john-doe.jpg',
-  bio: 'Test author bio',
-  location: 'New York, USA',
-  joinedDate: '2023-01-01',
-  totalListens: 15000,
-  followers: 1000,
-  following: 500,
-  socialLinks: {
-    twitter: 'https://twitter.com/johndoe',
-    linkedin: 'https://linkedin.com/in/johndoe'
-  },
-  works: [],
-  interviews: []
-};
-
 describe('EditProfileForm', () => {
-  const mockRouter = {
-    push: jest.fn(),
-    back: jest.fn(),
-    refresh: jest.fn()
-  };
-
   beforeEach(() => {
-    (useRouter as jest.Mock).mockReturnValue(mockRouter);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders form with author data', () => {
@@ -77,12 +56,23 @@ describe('EditProfileForm', () => {
     });
 
     // Submit form
-    fireEvent.submit(screen.getByRole('form'));
+    fireEvent.submit(screen.getByTestId('edit-profile-form'));
 
+    // Wait for the submit button to show "Saving..."
     await waitFor(() => {
-      expect(mockRouter.push).toHaveBeenCalledWith(`/author/${mockAuthor.id}`);
-      expect(mockRouter.refresh).toHaveBeenCalled();
+      expect(screen.getByText('Saving...')).toBeInTheDocument();
     });
+
+    // Wait for the simulated API call to complete
+    await waitFor(
+      () => {
+        expect(mockRouter.push).toHaveBeenCalledWith(
+          `/author/${mockAuthor.id}`
+        );
+        expect(mockRouter.refresh).toHaveBeenCalled();
+      },
+      { timeout: 2000 }
+    ); // Increase timeout to account for simulated delay
   });
 
   it('handles cancel button click', () => {
@@ -111,7 +101,8 @@ describe('EditProfileForm', () => {
   it('has proper form labeling and ARIA attributes', () => {
     render(<EditProfileForm author={mockAuthor} />);
 
-    const form = screen.getByRole('form');
+    // Get form by tag name instead of role
+    const form = screen.getByTestId('edit-profile-form');
     expect(form).toHaveAttribute('aria-label', 'Edit profile form');
 
     // Check all inputs have associated labels

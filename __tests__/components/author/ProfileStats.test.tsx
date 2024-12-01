@@ -1,34 +1,15 @@
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ProfileStats from '@/components/author/ProfileStats';
-import { Author } from '@/types/author';
-
-// Create mock author data
-const mockAuthor: Author = {
-  id: '1',
-  name: 'John Doe',
-  avatar: '/images/avatars/john-doe.jpg',
-  bio: 'Test author bio',
-  location: 'New York, USA',
-  joinedDate: '2023-01-01',
-  totalListens: 15000,
-  followers: 1000,
-  following: 500,
-  socialLinks: {
-    twitter: 'https://twitter.com/johndoe',
-    linkedin: 'https://linkedin.com/in/johndoe'
-  },
-  works: [],
-  interviews: []
-};
+import { mockAuthor } from '@/__tests__/setup/commonMocks';
 
 describe('ProfileStats', () => {
   it('renders all stat categories', () => {
     render(<ProfileStats author={mockAuthor} />);
 
-    // Check for all stat labels
     expect(screen.getByText('Total Listens')).toBeInTheDocument();
     expect(screen.getByText('Followers')).toBeInTheDocument();
-    expect(screen.getByText('Following')).toBeInTheDocument();
+    expect(screen.getByText('Published Works')).toBeInTheDocument();
   });
 
   it('formats numbers correctly', () => {
@@ -37,7 +18,10 @@ describe('ProfileStats', () => {
     // Check for formatted numbers
     expect(screen.getByText('15,000')).toBeInTheDocument();
     expect(screen.getByText('1,000')).toBeInTheDocument();
-    expect(screen.getByText('500')).toBeInTheDocument();
+    // Should be checking for works.length instead of following
+    expect(
+      screen.getByText(mockAuthor.works.length.toString())
+    ).toBeInTheDocument();
   });
 
   it('applies correct styling to stat cards', () => {
@@ -49,7 +33,6 @@ describe('ProfileStats', () => {
     });
   });
 
-  // Test for accessibility
   it('uses semantic HTML and proper ARIA attributes', () => {
     render(<ProfileStats author={mockAuthor} />);
 

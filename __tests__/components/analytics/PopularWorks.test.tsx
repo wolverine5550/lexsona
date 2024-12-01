@@ -28,6 +28,6 @@ describe('PopularWorks', () => {
 
   it('handles empty works array', () => {
     render(<PopularWorks works={[]} />);
-    expect(screen.getByText(/No works available/i)).toBeInTheDocument();
+    expect(screen.getByText('No works available')).toBeInTheDocument();
   });
 });
