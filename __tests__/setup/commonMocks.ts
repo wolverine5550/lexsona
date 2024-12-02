@@ -1,5 +1,45 @@
 import { vi } from 'vitest';
 
+// Mock ResizeObserver
+class MockResizeObserver {
+  callback: ResizeObserverCallback;
+  elements: Element[];
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    this.elements = [];
+  }
+
+  observe(target: Element) {
+    if (!this.elements.includes(target)) {
+      this.elements.push(target);
+      this.callback(
+        [
+          {
+            target,
+            contentRect: target.getBoundingClientRect(),
+            borderBoxSize: [{ blockSize: 0, inlineSize: 0 }],
+            contentBoxSize: [{ blockSize: 0, inlineSize: 0 }],
+            devicePixelContentBoxSize: [{ blockSize: 0, inlineSize: 0 }]
+          } as ResizeObserverEntry
+        ],
+        this
+      );
+    }
+  }
+
+  unobserve(target: Element) {
+    const index = this.elements.indexOf(target);
+    if (index > -1) {
+      this.elements.splice(index, 1);
+    }
+  }
+
+  disconnect() {
+    this.elements = [];
+  }
+}
+
 // Define mock channel factory
 const createMockChannel = () => ({
   on: vi.fn().mockReturnThis(),
@@ -79,6 +119,85 @@ export const setupCommonMocks = () => {
       };
     }
   }));
+
+  // Mock ResizeObserver
+  global.ResizeObserver = MockResizeObserver as any;
+  window.ResizeObserver = MockResizeObserver as any;
+
+  // Mock window.matchMedia
+  global.window.matchMedia = function (query: string) {
+    return {
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: function () {},
+      removeListener: function () {},
+      addEventListener: function () {},
+      removeEventListener: function () {},
+      dispatchEvent: function () {
+        return false;
+      }
+    };
+  };
+
+  // Mock Recharts
+  vi.mock('recharts', () => {
+    const React = require('react');
+    const createMockComponent = (testId: string) => {
+      const Component = ({ children, data, ...props }: any) => {
+        return React.createElement(
+          'div',
+          {
+            'data-testid': testId,
+            'data-chart-data': data ? JSON.stringify(data) : undefined,
+            ...props
+          },
+          children
+        );
+      };
+      Component.displayName = testId;
+      return Component;
+    };
+
+    // Special handling for ResponsiveContainer
+    const ResponsiveContainer = ({
+      children,
+      width = '100%',
+      height = 400
+    }: any) => {
+      return React.createElement(
+        'div',
+        {
+          'data-testid': 'responsive-container',
+          style: {
+            width: typeof width === 'number' ? `${width}px` : width,
+            height: typeof height === 'number' ? `${height}px` : height
+          }
+        },
+        // Ensure children is a function and call it with a default size
+        typeof children === 'function'
+          ? children({ width: 800, height: 400 })
+          : children
+      );
+    };
+    ResponsiveContainer.displayName = 'ResponsiveContainer';
+
+    return {
+      ResponsiveContainer,
+      LineChart: createMockComponent('line-chart'),
+      Line: createMockComponent('line'),
+      BarChart: createMockComponent('bar-chart'),
+      Bar: createMockComponent('bar'),
+      PieChart: createMockComponent('pie-chart'),
+      Pie: createMockComponent('pie'),
+      Cell: createMockComponent('cell'),
+      XAxis: createMockComponent('x-axis'),
+      YAxis: createMockComponent('y-axis'),
+      CartesianGrid: createMockComponent('cartesian-grid'),
+      Tooltip: createMockComponent('tooltip'),
+      Legend: createMockComponent('legend')
+    };
+  });
 };
 
 // Add mock author data for tests
