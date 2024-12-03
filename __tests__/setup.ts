@@ -87,8 +87,7 @@ beforeAll(() => {
 });
 
 // Mock Recharts
-vi.mock('recharts', async (importOriginal) => {
-  const actual = await importOriginal();
+vi.mock('recharts', async () => {
   const React = require('react');
 
   const createMockComponent = (testId: string) => {
@@ -129,7 +128,6 @@ vi.mock('recharts', async (importOriginal) => {
   };
 
   return {
-    ...actual,
     ResponsiveContainer,
     LineChart: createMockComponent('line-chart'),
     Line: createMockComponent('line'),

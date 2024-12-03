@@ -12,19 +12,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './vitest.setup.ts',
-    testTimeout: 20000,
-    isolate: false,
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true,
-        isolate: false
-      }
+    testTimeout: 10000,
+    sequence: {
+      concurrent: false
     },
     environmentOptions: {
       jsdom: {
-        resources: 'usable',
-        runScripts: 'dangerously'
+        resources: 'usable'
       }
     }
   },
