@@ -26,22 +26,12 @@ export function SignInForm() {
     setLoading(true);
 
     try {
-      console.log('Attempting sign in...');
       const user = await signIn(email, password);
       console.log('Sign in successful, user:', user);
-
-      // Show success message
-      toast({
-        title: 'Success',
-        description: 'You have been signed in successfully.'
-      });
 
       // Get return URL from query parameters or use default
       const returnUrl = searchParams?.get('from') || '/dashboard';
       console.log('Redirecting to:', returnUrl);
-
-      // Add a small delay to ensure toast is shown
-      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Force a hard navigation
       window.location.href = returnUrl;

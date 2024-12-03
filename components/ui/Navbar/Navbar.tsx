@@ -2,31 +2,14 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { toast } from '@/components/ui/Toasts/use-toast';
+import { useState } from 'react';
 
 export default function Navbar() {
-  const { user, loading, signOut } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      toast({
-        title: 'Signed out',
-        description: 'You have been signed out successfully.'
-      });
-
-      // Force a hard navigation to sign-in
-      window.location.href = '/signin';
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to sign out. Please try again.',
-        variant: 'destructive'
-      });
-    }
+  const handleSignOut = () => {
+    signOut();
   };
 
   return (
@@ -37,7 +20,7 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          {loading ? (
+          {authLoading ? (
             <span className="text-sm text-zinc-400">Loading...</span>
           ) : user ? (
             <>

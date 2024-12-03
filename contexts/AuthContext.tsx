@@ -153,11 +153,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signOut = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Immediately redirect to home page
+      window.location.href = '/';
 
-      // Clear user state
+      // Then clean up auth state
+      await supabase.auth.signOut();
       setUser(null);
+      setLoading(false);
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
