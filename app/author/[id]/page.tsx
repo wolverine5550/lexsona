@@ -5,7 +5,7 @@ import ProfileBio from '@/components/author/ProfileBio';
 import ProfileStats from '@/components/author/ProfileStats';
 import PortfolioPreview from '@/components/author/PortfolioPreview';
 import InterviewsPreview from '@/components/author/InterviewsPreview';
-import { Author } from '@/types/author';
+import { AuthorService } from '@/services/author';
 
 // Metadata for SEO
 export async function generateMetadata({
@@ -14,7 +14,7 @@ export async function generateMetadata({
   params: { id: string };
 }): Promise<Metadata> {
   // Fetch author data
-  const author = await getAuthor(params.id);
+  const author = await AuthorService.getAuthor(params.id);
 
   if (!author) {
     return {
@@ -33,22 +33,15 @@ export async function generateMetadata({
   };
 }
 
-// Export getAuthor for testing
-export async function getAuthor(id: string): Promise<Author | null> {
-  // TODO: Implement actual API call
-  return null;
-}
-
 export default async function AuthorProfile({
   params
 }: {
   params: { id: string };
 }) {
-  const author = await getAuthor(params.id);
+  const author = await AuthorService.getAuthor(params.id);
 
   if (!author) {
     notFound();
-    return;
   }
 
   return (

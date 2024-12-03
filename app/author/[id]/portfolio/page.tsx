@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Author } from '@/types/author';
+import { AuthorService } from '@/services/author';
 import PortfolioGrid from '@/components/author/PortfolioGrid';
 import PortfolioFilters from '@/components/author/PortfolioFilters';
 
@@ -9,17 +9,12 @@ export const metadata: Metadata = {
   description: 'View all published works'
 };
 
-async function getAuthor(id: string): Promise<Author | null> {
-  // TODO: Implement actual API call
-  return null;
-}
-
 export default async function PortfolioPage({
   params
 }: {
   params: { id: string };
 }) {
-  const author = await getAuthor(params.id);
+  const author = await AuthorService.getAuthor(params.id);
 
   if (!author) {
     notFound();

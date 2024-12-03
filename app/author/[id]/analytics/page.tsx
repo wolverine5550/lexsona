@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Author } from '@/types/author';
+import { AuthorService } from '@/services/author';
 import AnalyticsSummary from '@/components/author/analytics/AnalyticsSummary';
 import ListeningTrends from '@/components/author/analytics/ListeningTrends';
 import PopularWorks from '@/components/author/analytics/PopularWorks';
@@ -13,22 +13,15 @@ export const metadata: Metadata = {
     'View detailed analytics and insights about your content performance'
 };
 
-// Export getAuthorAnalytics for testing
-export async function getAuthorAnalytics(id: string): Promise<Author | null> {
-  // TODO: Implement actual API call
-  return null;
-}
-
 export default async function AnalyticsDashboard({
   params
 }: {
   params: { id: string };
 }) {
-  const authorData = await getAuthorAnalytics(params.id);
+  const authorData = await AuthorService.getAuthorAnalytics(params.id);
 
   if (!authorData) {
     notFound();
-    return;
   }
 
   return (

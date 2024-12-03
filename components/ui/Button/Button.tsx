@@ -1,66 +1,48 @@
 'use client';
 
-import cn from 'classnames';
-import React, { forwardRef, useRef, ButtonHTMLAttributes } from 'react';
-import { mergeRefs } from 'react-merge-refs';
+import { cn } from '@/utils/cn';
+import { forwardRef } from 'react';
 
-import LoadingDots from '@/components/ui/LoadingDots';
-
-import styles from './Button.module.css';
-
-interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'slim' | 'flat';
-  active?: boolean;
-  width?: number;
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'default' | 'flat' | 'slim' | 'outline';
+  size?: 'default' | 'sm' | 'lg';
   loading?: boolean;
-  Component?: React.ComponentType;
 }
 
-const Button = forwardRef<HTMLButtonElement, Props>((props, buttonRef) => {
-  const {
-    className,
-    variant = 'flat',
-    children,
-    active,
-    width,
-    loading = false,
-    disabled = false,
-    style = {},
-    Component = 'button',
-    ...rest
-  } = props;
-  const ref = useRef(null);
-  const rootClassName = cn(
-    styles.root,
-    {
-      [styles.slim]: variant === 'slim',
-      [styles.loading]: loading,
-      [styles.disabled]: disabled
-    },
-    className
-  );
-  return (
-    <Component
-      aria-pressed={active}
-      data-variant={variant}
-      ref={mergeRefs([ref, buttonRef])}
-      className={rootClassName}
-      disabled={disabled}
-      style={{
-        width,
-        ...style
-      }}
-      {...rest}
-    >
-      {children}
-      {loading && (
-        <i className="flex pl-2 m-0">
-          <LoadingDots />
-        </i>
-      )}
-    </Component>
-  );
-});
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size = 'default', loading, ...props }, ref) => {
+    const baseStyles =
+      'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+
+    const variants = {
+      default: 'bg-blue-500 text-white hover:bg-blue-600',
+      flat: 'text-zinc-100 hover:bg-zinc-800',
+      slim: 'bg-zinc-900 text-zinc-100 hover:bg-zinc-800',
+      outline: 'border border-zinc-700 bg-transparent hover:bg-zinc-800'
+    };
+
+    const sizes = {
+      default: 'h-10 px-4 py-2',
+      sm: 'h-8 px-3 text-sm',
+      lg: 'h-12 px-6 text-lg'
+    };
+
+    return (
+      <button
+        className={cn(
+          baseStyles,
+          variants[variant || 'default'],
+          sizes[size],
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+
 Button.displayName = 'Button';
 
 export default Button;

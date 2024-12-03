@@ -15,6 +15,7 @@ import {
 } from '@/lib/utils/notifications';
 import debounce from 'lodash/debounce';
 import EmailPreview from './EmailPreview';
+import { useUser } from '@/hooks/useUser';
 
 // Type for draft form data
 type DraftFormData = Omit<EmailDraft, 'id' | 'created_at' | 'updated_at'>;
@@ -39,6 +40,9 @@ const EmailDraftEditor = ({
   onSchedule,
   onSend
 }: EmailDraftEditorProps) => {
+  // Get the authenticated user
+  const { user } = useUser();
+
   // Form state
   const [subject, setSubject] = useState(draft?.subject || '');
   const [content, setContent] = useState(draft?.content || '');

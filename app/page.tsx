@@ -159,41 +159,45 @@ const faqs = [
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section */}
-      <section className="relative px-6 lg:px-8 py-24 md:py-32 bg-zinc-900">
+      {/* Hero Section - Updated styling */}
+      <section className="relative px-6 lg:px-8 py-24 md:py-32 bg-gradient-to-b from-zinc-900 to-zinc-950">
         <div className="mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Column - Text */}
-            <div className="text-center lg:text-left">
+            <div className="text-center lg:text-left space-y-6">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
-                Connect Authors with
-                <span className="text-blue-500"> Perfect Podcasts</span>
+                Connect Authors with{' '}
+                <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                  Perfect Podcasts
+                </span>
               </h1>
-              <p className="mt-6 text-lg md:text-xl leading-8 text-zinc-300">
+              <p className="text-lg md:text-xl leading-8 text-zinc-300">
                 Find and pitch to podcasts that match your book's audience.
                 Expand your reach and connect with engaged listeners.
               </p>
-              <div className="mt-10 flex gap-x-6 justify-center lg:justify-start">
-                <Button>Get Started</Button>
-                <Button variant="flat">Learn More</Button>
+              <div className="flex gap-x-6 justify-center lg:justify-start">
+                <Button size="lg">Get Started</Button>
+                <Button variant="outline" size="lg">
+                  Learn More
+                </Button>
               </div>
             </div>
 
             {/* Right Column - Image */}
-            <div className="relative aspect-square lg:aspect-auto lg:h-[600px]">
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/30 to-purple-500/30 rounded-2xl" />
-              <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl" />
+            <div className="relative aspect-square lg:aspect-auto lg:h-[600px] rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20" />
+              <div className="absolute inset-0 backdrop-blur-3xl" />
+              <div className="absolute inset-0 bg-zinc-950/50" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid Section */}
-      <section id="features" className="py-24 bg-zinc-950">
+      {/* Features Grid Section - Updated styling */}
+      <section className="py-24 bg-zinc-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          {/* Section Header */}
           <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
               Everything You Need to Succeed
             </h2>
             <p className="mt-6 text-lg leading-8 text-zinc-300">
@@ -202,33 +206,30 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-8 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+                className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-8 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-900 hover:shadow-lg hover:shadow-zinc-950/50"
               >
-                {/* Icon */}
-                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 text-blue-500">
                   {feature.icon}
                 </div>
-                {/* Title */}
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className="mb-3 text-lg font-semibold text-white">
                   {feature.title}
                 </h3>
-                {/* Description */}
-                <p className="text-sm text-zinc-400">{feature.description}</p>
+                <p className="text-sm leading-relaxed text-zinc-400">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Benefits Section with alternating layout */}
-      <section id="benefits" className="py-24 bg-zinc-900">
+      {/* Benefits Section - Updated styling */}
+      <section className="py-24 bg-gradient-to-b from-zinc-950 to-zinc-900">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          {/* Map through benefits array */}
           {benefits.map((benefit, index) => (
             <div
               key={index}
@@ -238,28 +239,26 @@ export default function Home() {
                   : 'lg:grid-cols-[5fr_6fr]'
               }`}
             >
-              {/* Text Content - conditionally ordered based on image side */}
               <div
-                className={
+                className={`space-y-6 ${
                   benefit.imageSide === 'right' ? 'order-1' : 'order-2'
-                }
+                }`}
               >
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
                   {benefit.title}
                 </h2>
-                <p className="mt-6 text-lg leading-8 text-zinc-300">
+                <p className="text-lg leading-8 text-zinc-300">
                   {benefit.description}
                 </p>
-                <div className="mt-10">
-                  <Button>{benefit.buttonText}</Button>
+                <div>
+                  <Button size="lg">{benefit.buttonText}</Button>
                 </div>
               </div>
 
-              {/* Image/Gradient - conditionally ordered based on image side */}
               <div
-                className={
+                className={`relative ${
                   benefit.imageSide === 'right' ? 'order-2' : 'order-1'
-                }
+                }`}
               >
                 {benefit.imageComponent}
               </div>
@@ -268,12 +267,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-24 bg-zinc-950">
+      {/* Testimonials Section - Updated styling */}
+      <section className="py-24 bg-gradient-to-b from-zinc-900 to-zinc-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          {/* Section Header */}
           <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
               Trusted by Authors Worldwide
             </h2>
             <p className="mt-6 text-lg leading-8 text-zinc-300">
@@ -282,27 +280,19 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Testimonials Grid */}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8"
+                className="relative rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-8 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-900 hover:shadow-lg hover:shadow-zinc-950/50"
               >
-                {/* Large quote mark decoration */}
-                <div className="absolute top-4 right-6 text-4xl text-zinc-700 opacity-50">
+                <div className="absolute top-4 right-6 text-4xl text-zinc-700/50">
                   "
                 </div>
-
-                {/* Avatar */}
                 <div className="mb-8">{testimonial.avatarComponent}</div>
-
-                {/* Quote */}
-                <blockquote className="text-lg font-medium text-white mb-6">
+                <blockquote className="text-lg font-medium text-zinc-200 mb-6">
                   "{testimonial.quote}"
                 </blockquote>
-
-                {/* Author Info */}
                 <div className="text-center">
                   <div className="font-semibold text-white">
                     {testimonial.author}
