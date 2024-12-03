@@ -1,90 +1,48 @@
-import { useState, useEffect } from 'react';
-import { User, AuthChangeEvent } from '@supabase/supabase-js';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 
-interface UseUserReturn {
-  user: User | null;
-  loading: boolean;
-  error: Error | null;
-}
-
-/**
- * Hook to handle user authentication state
- *
- * This hook provides:
- * - Current user data
- * - Loading state while checking authentication
- * - Error state if authentication check fails
- *
- * It automatically updates when the user's authentication state changes
- * by subscribing to Supabase auth state changes.
- */
-export function useUser(): UseUserReturn {
-  // Initialize state
+export function useUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    // Get Supabase client
-    const supabase = createClient();
-
-    // Get initial user state
-    const initializeUser = async () => {
+    // Get initial session
+    const getInitialSession = async () => {
       try {
-        setLoading(true);
-
-        // Get current session
         const {
-          data: { user },
-          error: sessionError
-        } = await supabase.auth.getUser();
-
-        if (sessionError) {
-          throw sessionError;
-        }
-
-        setUser(user);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to get user'));
+          data: { session },
+          error
+        } = await supabase.auth.getSession();
+        if (error) throw error;
+        setUser(session?.user ?? null);
+      } catch (e) {
+        setError(e as Error);
+        console.error('Error getting session:', e);
       } finally {
         setLoading(false);
       }
     };
 
-    // Initialize
-    initializeUser();
+    getInitialSession();
 
-    // Subscribe to auth state changes
+    // Listen for auth changes
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
-      // Update user state based on auth events
-      switch (event) {
-        case 'SIGNED_IN':
-          setUser(session?.user ?? null);
-          break;
-        case 'SIGNED_OUT':
-          setUser(null);
-          break;
-        case 'USER_UPDATED':
-          setUser(session?.user ?? null);
-          break;
-        case 'TOKEN_REFRESHED':
-          setUser(session?.user ?? null);
-          break;
-        case 'MFA_CHALLENGE_VERIFIED':
-          setUser(session?.user ?? null);
-          break;
-        // Handle other valid auth events as needed
-      }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user); // Debug log
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency array as we only want to run this once
+  }, []);
 
   return { user, loading, error };
 }

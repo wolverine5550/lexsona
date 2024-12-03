@@ -1,38 +1,40 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Podcasts', path: '/dashboard/podcasts' }
-  ];
+  useEffect(() => {
+    if (!loading && !user) {
+      console.log('No user in dashboard layout, redirecting to signin');
+      window.location.href = '/signin';
+    }
+  }, [user, loading]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <div className="space-y-4 text-center">
+          <div className="text-lg text-white">Loading dashboard...</div>
+          <div className="text-sm text-zinc-400">Please wait a moment</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div>
-      <nav>
-        {navItems.map((item) => {
-          const isActive = pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              href={item.path}
-              data-active={isActive}
-              className={`block px-4 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'bg-zinc-800 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-      {children}
+    <div className="min-h-screen bg-zinc-950">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </div>
     </div>
   );
 }

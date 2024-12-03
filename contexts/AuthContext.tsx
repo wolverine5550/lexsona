@@ -1,15 +1,21 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  ReactNode,
+  useCallback,
+  useState,
+  useEffect
+} from 'react';
 import { User } from '@supabase/supabase-js';
-import { useUser } from '@/hooks/useUser';
 import { createClient } from '@/utils/supabase/client';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: Error | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User | void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -30,23 +36,100 @@ interface AuthProviderProps {
  * to any child component that calls useAuth().
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Get user state from hook
-  const { user, loading, error } = useUser();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const supabase = createClient();
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Get initial user
+    const initUser = async () => {
+      try {
+        console.log('Initializing user...');
+        const {
+          data: { user },
+          error
+        } = await supabase.auth.getUser();
+
+        if (error) throw error;
+
+        if (mounted) {
+          console.log('Setting initial user:', user);
+          setUser(user);
+        }
+      } catch (e) {
+        console.error('Error getting user:', e);
+        if (mounted) {
+          setError(e as Error);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initUser();
+
+    // Listen for auth changes
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      if (mounted) {
+        try {
+          if (session?.user) {
+            setUser(session.user);
+          } else {
+            const {
+              data: { user }
+            } = await supabase.auth.getUser();
+            setUser(user);
+          }
+        } catch (error) {
+          console.error('Error updating user:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   /**
    * Sign in with email and password
    */
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-    if (error) {
-      throw error;
-    }
-  }, []);
+        if (error) throw error;
+        if (!data.user) throw new Error('No user returned from sign in');
+
+        // Get fresh user data
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+        if (userError) throw userError;
+
+        setUser(userData.user);
+        return userData.user;
+      } catch (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
+    },
+    [supabase.auth]
+  );
 
   /**
    * Sign up with email and password
@@ -69,11 +152,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Sign out the current user
    */
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Clear user state
+      setUser(null);
+    } catch (error) {
+      console.error('Sign out error:', error);
       throw error;
     }
-  }, []);
+  }, [supabase.auth]);
 
   /**
    * Send password reset email

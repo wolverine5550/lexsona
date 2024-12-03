@@ -1,144 +1,135 @@
 'use client';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
-import { BaseAuthForm } from './BaseAuthForm';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { toast } from '@/components/ui/Toasts/use-toast';
+import { useSearchParams } from 'next/navigation';
 
 export function SignInForm() {
-  const router = useRouter();
-  const [authMode, setAuthMode] = useState<'email' | 'password'>('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
+  const searchParams = useSearchParams();
 
-  /**
-   * Handle form submission for both email magic link and password sign in
-   * @param formData - Form data from the submit event
-   */
-  const handleSubmit = async (formData: FormData) => {
-    const email = formData.get('email') as string;
-    const supabase = createClient();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-    if (authMode === 'email') {
-      // Send magic link email
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
-
-      if (error) throw error;
+    try {
+      console.log('Attempting sign in...');
+      const user = await signIn(email, password);
+      console.log('Sign in successful, user:', user);
 
       // Show success message
-      return { message: 'Check your email for the login link!' };
-    } else {
-      // Sign in with password
-      const password = formData.get('password') as string;
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      toast({
+        title: 'Success',
+        description: 'You have been signed in successfully.'
       });
 
-      if (error) throw error;
+      // Get return URL from query parameters or use default
+      const returnUrl = searchParams?.get('from') || '/dashboard';
+      console.log('Redirecting to:', returnUrl);
 
-      // Redirect to dashboard on success
-      router.push('/dashboard');
+      // Add a small delay to ensure toast is shown
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Force a hard navigation
+      window.location.href = returnUrl;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Invalid email or password.',
+        variant: 'destructive'
+      });
+      setLoading(false);
     }
   };
 
-  /**
-   * Footer component with links to other auth options
-   */
-  const AuthFooter = () => (
-    <div className="space-y-4 text-center text-sm text-zinc-400">
-      {/* Toggle between email/password modes */}
-      <button
-        type="button"
-        onClick={() => setAuthMode(authMode === 'email' ? 'password' : 'email')}
-        className="hover:text-white"
-      >
-        {authMode === 'email'
-          ? 'Sign in with password instead'
-          : 'Sign in with magic link instead'}
-      </button>
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle>Sign In</CardTitle>
+        <CardDescription>
+          Enter your email and password to continue
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-zinc-200"
+            >
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="you@example.com"
+              required
+              disabled={loading}
+            />
+          </div>
 
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-zinc-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-zinc-950 px-2 text-zinc-500">Or</span>
-        </div>
-      </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-zinc-200"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              required
+              disabled={loading}
+            />
+          </div>
 
-      {/* Sign up link */}
-      <p>
-        Don't have an account?{' '}
-        <Link href="/signup" className="text-blue-500 hover:text-blue-400">
-          Sign up
-        </Link>
-      </p>
+          <Button
+            type="submit"
+            className="w-full"
+            loading={loading}
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+        </form>
 
-      {/* Password reset link - only show in password mode */}
-      {authMode === 'password' && (
-        <p>
+        <div className="mt-4 text-center text-sm text-zinc-400">
           <Link
-            href="/reset-password"
+            href="/auth/forgot-password"
             className="text-blue-500 hover:text-blue-400"
           >
             Forgot your password?
           </Link>
-        </p>
-      )}
-    </div>
-  );
-
-  return (
-    <BaseAuthForm
-      onSubmit={handleSubmit}
-      submitText={authMode === 'email' ? 'Send Magic Link' : 'Sign In'}
-      footer={<AuthFooter />}
-    >
-      {/* Email Input */}
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-zinc-200"
-        >
-          Email address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="you@example.com"
-        />
-      </div>
-
-      {/* Password Input - only show in password mode */}
-      {authMode === 'password' && (
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-zinc-200"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
         </div>
-      )}
-    </BaseAuthForm>
+
+        <div className="mt-6 text-center text-sm text-zinc-400">
+          Don't have an account?{' '}
+          <Link href="/signup" className="text-blue-500 hover:text-blue-400">
+            Sign up
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

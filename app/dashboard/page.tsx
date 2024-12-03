@@ -1,66 +1,44 @@
+import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { StatsCard } from '@/components/dashboard/StatsCard';
-import { RecentMatches } from '@/components/dashboard/RecentMatches';
-import { UpcomingInterviews } from '@/components/dashboard/UpcomingInterviews';
-import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 
-export default function DashboardPage() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function DashboardPage() {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+    error
+  } = await supabase.auth.getUser();
+
+  console.log('Dashboard server check:', {
+    hasUser: !!user,
+    userId: user?.id,
+    error
+  });
+
+  if (!user) {
+    console.log('No user in dashboard, redirecting to signin');
+    redirect('/signin');
+  }
+
   return (
     <DashboardLayout>
-      {/* Stats Overview */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard
-          title="Total Matches"
-          value="24"
-          trend="+12%"
-          trendDirection="up"
-        />
-        <StatsCard
-          title="Pending Requests"
-          value="8"
-          trend="+3"
-          trendDirection="up"
-        />
-        <StatsCard
-          title="Upcoming Interviews"
-          value="3"
-          trend="Next: Tomorrow"
-        />
-        <StatsCard
-          title="Profile Views"
-          value="156"
-          trend="+23%"
-          trendDirection="up"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
-        <div className="space-y-8">
-          {/* Recent Matches */}
-          <section>
-            <h2 className="mb-4 text-xl font-semibold text-white">
-              Recent Matches
-            </h2>
-            <RecentMatches />
-          </section>
-
-          {/* Upcoming Interviews */}
-          <section>
-            <h2 className="mb-4 text-xl font-semibold text-white">
-              Upcoming Interviews
-            </h2>
-            <UpcomingInterviews />
-          </section>
+      <div className="min-h-screen bg-zinc-950 p-4">
+        <div className="mx-auto max-w-7xl pt-20">
+          <h1 className="text-2xl font-bold text-white">
+            Welcome, {user.email}
+          </h1>
+          <div className="mt-4 grid gap-6">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6">
+              <pre className="overflow-auto text-sm text-zinc-300">
+                {JSON.stringify(user, null, 2)}
+              </pre>
+            </div>
+          </div>
         </div>
-
-        {/* Activity Feed */}
-        <section>
-          <h2 className="mb-4 text-xl font-semibold text-white">
-            Recent Activity
-          </h2>
-          <ActivityFeed />
-        </section>
       </div>
     </DashboardLayout>
   );

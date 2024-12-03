@@ -27,14 +27,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-zinc-950 text-zinc-50 antialiased">
         <Providers>
-          <Navbar />
-          <main
-            id="skip"
-            className="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-5rem)]"
-          >
-            {children}
-          </main>
-          <Footer />
+          <div className="flex min-h-screen flex-col">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
         </Providers>
       </body>
     </html>

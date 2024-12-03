@@ -1,6 +1,5 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Middleware to handle auth state and protected routes
@@ -9,54 +8,59 @@ import type { NextRequest } from 'next/server';
  * - Redirects authenticated users from auth pages
  */
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const supabase = createMiddlewareClient({ req: request, res: response });
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers
+    }
+  });
 
-  // Refresh session if needed
-  await supabase.auth.getSession();
-
-  // Get URL information
-  const { pathname } = request.nextUrl;
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
-  // Define protected and auth routes
-  const protectedRoutes = ['/dashboard', '/onboarding'];
-  const authRoutes = ['/signin', '/signup', '/reset-password'];
-
-  // Check if route is protected
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          response.cookies.set({ name, value: '', ...options });
+        }
+      }
+    }
   );
 
-  // Check if route is auth page
-  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  try {
+    const {
+      data: { user },
+      error
+    } = await supabase.auth.getUser();
 
-  // Redirect if needed
-  if (isProtectedRoute && !session) {
-    // Redirect unauthenticated users to sign in
-    return NextResponse.redirect(new URL('/signin', request.url));
+    console.log('Middleware check:', {
+      path: request.nextUrl.pathname,
+      hasUser: !!user,
+      error
+    });
+
+    // Protected routes
+    if (request.nextUrl.pathname.startsWith('/dashboard')) {
+      if (!user) {
+        const redirectUrl = new URL('/signin', request.url);
+        redirectUrl.searchParams.set('from', request.nextUrl.pathname);
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return response;
   }
-
-  if (isAuthRoute && session) {
-    // Redirect authenticated users to dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  return response;
 }
 
 // Configure which routes use this middleware
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
-  ]
+  matcher: ['/dashboard/:path*']
 };
