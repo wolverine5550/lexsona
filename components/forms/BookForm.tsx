@@ -9,13 +9,16 @@ import { useOnboarding } from '@/contexts/OnboardingContext';
 interface BookFormData {
   title: string;
   description: string;
-  genre: string;
-  publishDate: string;
-  targetAudience: string;
+  genre: string[];
+  targetAudience: string[];
 }
 
 interface FormErrors extends Partial<BookFormData> {
   submit?: string;
+}
+
+interface TouchedFields {
+  [key: string]: boolean;
 }
 
 interface BookFormProps {
@@ -31,6 +34,7 @@ export function BookForm({ existingBook }: BookFormProps) {
   const [hasErrors, setHasErrors] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [mounted, setMounted] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<TouchedFields>({});
 
   // Initialize form data after mount
   useEffect(() => {
@@ -38,56 +42,59 @@ export function BookForm({ existingBook }: BookFormProps) {
     setFormData({
       title: existingBook?.title || '',
       description: existingBook?.description || '',
-      genre: existingBook?.genre || '',
-      publishDate: existingBook?.publish_date || '',
-      targetAudience: existingBook?.target_audience || ''
+      genre: existingBook?.genre || [],
+      targetAudience: existingBook?.target_audience || []
     });
   }, [existingBook]);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
     description: '',
-    genre: '',
-    publishDate: '',
-    targetAudience: ''
+    genre: [],
+    targetAudience: []
   });
 
   const validateForm = () => {
-    const newErrors: FormErrors = {};
+    const newErrors: { [key: string]: string } = {};
+    const data = formData;
 
-    if (!formData.title) newErrors.title = 'Title is required';
-    if (!formData.description) {
+    // Required fields validation
+    if (!data.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
+
+    if (!data.description.trim()) {
       newErrors.description = 'Description is required';
     }
-    if (!formData.genre) newErrors.genre = 'Genre is required';
+
+    if (!data.genre.length) {
+      newErrors.genre = 'At least one genre is required';
+    }
 
     setErrors(newErrors);
-    setHasErrors(Object.keys(newErrors).length > 0);
-
     return Object.keys(newErrors).length === 0;
   };
 
-  /**
-   * Scroll to first error with smooth behavior
-   */
-  const scrollToFirstError = () => {
-    // Wait for the error messages to be rendered
-    setTimeout(() => {
-      const firstErrorElement = document.querySelector('.text-red-500');
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-
-        // Optional: Add focus for accessibility
-        const nearestInput =
-          firstErrorElement.previousElementSibling as HTMLElement;
-        if (nearestInput) {
-          nearestInput.focus();
-        }
-      }
-    }, 100); // Small delay to ensure DOM is updated
+  const handleFieldChange = (
+    field: keyof BookFormData,
+    value: string | string[]
+  ) => {
+    if (field === 'genre' || field === 'targetAudience') {
+      // Handle array fields by splitting comma-separated values
+      const arrayValue =
+        typeof value === 'string'
+          ? value.split(',').map((v) => v.trim())
+          : value;
+      setFormData((prev) => ({
+        ...prev,
+        [field]: arrayValue
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,7 +103,7 @@ export function BookForm({ existingBook }: BookFormProps) {
 
     const isValid = validateForm();
     if (!isValid) {
-      scrollToFirstError(); // Add scroll to error
+      scrollToFirstError();
       return;
     }
 
@@ -107,26 +114,55 @@ export function BookForm({ existingBook }: BookFormProps) {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      const { error } = await supabase.from('books').upsert({
+      console.log('Saving book data:', {
         author_id: user.id,
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         genre: formData.genre,
-        publish_date: formData.publishDate,
         target_audience: formData.targetAudience
       });
 
-      if (error) throw error;
+      const { error } = await supabase.from('books').upsert({
+        author_id: user.id,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        genre: formData.genre,
+        target_audience: formData.targetAudience
+      });
+
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
 
       markStepComplete(1);
       router.push('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving book:', error);
-      setErrors({ submit: 'Failed to save book' });
+      setErrors({ submit: `Failed to save book: ${error.message}` });
       setHasErrors(true);
+      scrollToFirstError();
     } finally {
       setLoading(false);
     }
+  };
+
+  const scrollToFirstError = () => {
+    setTimeout(() => {
+      const firstErrorElement = document.querySelector('.text-red-500');
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+
+        const nearestInput =
+          firstErrorElement.previousElementSibling as HTMLElement;
+        if (nearestInput) {
+          nearestInput.focus();
+        }
+      }
+    }, 100);
   };
 
   if (!mounted) {
@@ -135,6 +171,12 @@ export function BookForm({ existingBook }: BookFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {errors.submit && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4">
+          <p className="text-sm text-red-500">{errors.submit}</p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <label htmlFor="title" className="text-sm font-medium text-zinc-200">
           Book Title
@@ -142,8 +184,11 @@ export function BookForm({ existingBook }: BookFormProps) {
         <input
           id="title"
           value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100"
+          onChange={(e) => handleFieldChange('title', e.target.value)}
+          onBlur={() => setTouchedFields((prev) => ({ ...prev, title: true }))}
+          className={`w-full rounded-lg border px-4 py-2 text-zinc-100 bg-zinc-900 ${
+            isSubmitted && errors.title ? 'border-red-500' : 'border-zinc-800'
+          }`}
         />
         {isSubmitted && errors.title && (
           <p className="mt-1 text-sm text-red-500">{errors.title}</p>
@@ -160,11 +205,16 @@ export function BookForm({ existingBook }: BookFormProps) {
         <textarea
           id="description"
           value={formData.description}
-          onChange={(e) =>
-            setFormData({ ...formData, description: e.target.value })
+          onChange={(e) => handleFieldChange('description', e.target.value)}
+          onBlur={() =>
+            setTouchedFields((prev) => ({ ...prev, description: true }))
           }
           rows={4}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100"
+          className={`w-full rounded-lg border px-4 py-2 text-zinc-100 bg-zinc-900 ${
+            isSubmitted && errors.description
+              ? 'border-red-500'
+              : 'border-zinc-800'
+          }`}
         />
         {isSubmitted && errors.description && (
           <p className="mt-1 text-sm text-red-500">{errors.description}</p>
@@ -173,22 +223,52 @@ export function BookForm({ existingBook }: BookFormProps) {
 
       <div className="space-y-2">
         <label htmlFor="genre" className="text-sm font-medium text-zinc-200">
-          Genre
+          Genre (comma-separated)
         </label>
         <input
           id="genre"
-          value={formData.genre}
-          onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100"
+          value={formData.genre.join(', ')}
+          onChange={(e) => handleFieldChange('genre', e.target.value)}
+          onBlur={() => setTouchedFields((prev) => ({ ...prev, genre: true }))}
+          className={`w-full rounded-lg border px-4 py-2 text-zinc-100 bg-zinc-900 ${
+            isSubmitted && errors.genre ? 'border-red-500' : 'border-zinc-800'
+          }`}
+          placeholder="e.g., Fiction, Mystery, Thriller"
         />
         {isSubmitted && errors.genre && (
           <p className="mt-1 text-sm text-red-500">{errors.genre}</p>
         )}
       </div>
 
+      <div className="space-y-2">
+        <label
+          htmlFor="targetAudience"
+          className="text-sm font-medium text-zinc-200"
+        >
+          Target Audience (comma-separated, Optional)
+        </label>
+        <input
+          id="targetAudience"
+          value={formData.targetAudience.join(', ')}
+          onChange={(e) => handleFieldChange('targetAudience', e.target.value)}
+          onBlur={() =>
+            setTouchedFields((prev) => ({ ...prev, targetAudience: true }))
+          }
+          className={`w-full rounded-lg border px-4 py-2 text-zinc-100 bg-zinc-900 ${
+            isSubmitted && errors.targetAudience
+              ? 'border-red-500'
+              : 'border-zinc-800'
+          }`}
+          placeholder="e.g., Young Adults, Business Professionals"
+        />
+        {isSubmitted && errors.targetAudience && (
+          <p className="mt-1 text-sm text-red-500">{errors.targetAudience}</p>
+        )}
+      </div>
+
       <Button
         type="submit"
-        className={`w-full ${hasErrors ? 'bg-red-600 hover:bg-red-700' : ''}`}
+        className={`w-full ${hasErrors && isSubmitted ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
         loading={loading}
       >
         {loading

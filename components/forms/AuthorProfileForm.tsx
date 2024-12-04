@@ -229,8 +229,8 @@ export function AuthorProfileForm({ existingProfile }: AuthorProfileFormProps) {
       // Clear saved data on successful submission
       clearSavedData();
 
-      // Mark step as complete
-      markStepComplete(1);
+      // Mark step as complete (Author Profile is step 0)
+      markStepComplete(0);
 
       // Navigate directly to book form
       router.push('/onboarding/book');

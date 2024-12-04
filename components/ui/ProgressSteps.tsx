@@ -24,11 +24,11 @@ export function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
             }`}
           >
             <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${
                 step.completed
                   ? 'border-blue-500 bg-blue-500 text-white'
                   : step.current
-                    ? 'border-blue-500 text-blue-500'
+                    ? 'border-blue-500 bg-blue-500/5 text-blue-500 ring-2 ring-blue-500/20'
                     : 'border-zinc-700 text-zinc-700'
               }`}
             >
@@ -36,7 +36,7 @@ export function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
             </div>
             {index !== steps.length - 1 && (
               <div
-                className={`h-0.5 flex-1 ${
+                className={`h-0.5 flex-1 transition-colors ${
                   step.completed ? 'bg-blue-500' : 'bg-zinc-700'
                 }`}
               />
@@ -48,8 +48,12 @@ export function ProgressSteps({ steps, currentStep }: ProgressStepsProps) {
         {steps.map((step) => (
           <span
             key={step.path}
-            className={`text-sm ${
-              step.current || step.completed ? 'text-white' : 'text-zinc-500'
+            className={`text-sm transition-colors ${
+              step.current
+                ? 'text-blue-500 font-semibold'
+                : step.completed
+                  ? 'text-white'
+                  : 'text-zinc-500'
             }`}
           >
             {step.title}

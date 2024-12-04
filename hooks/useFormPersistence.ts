@@ -6,83 +6,83 @@ import debounce from 'lodash/debounce';
 interface UseFormPersistenceProps<T> {
   key: string;
   initialState: T;
-  autoSaveDelay?: number; // Delay in ms before auto-saving
+  autoSaveDelay?: number;
 }
 
-/**
- * Hook to persist form state in localStorage
- * Automatically saves form data and restores it on page load
- */
 export function useFormPersistence<T>({
   key,
   initialState,
-  autoSaveDelay = 1000 // Default 1 second delay
+  autoSaveDelay = 1000
 }: UseFormPersistenceProps<T>) {
-  // Initialize state with persisted data or initial state
-  const [formData, setFormData] = useState<T>(() => {
-    if (typeof window === 'undefined') return initialState;
+  // Initialize with initialState first
+  const [formData, setFormData] = useState<T>(initialState);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
-    // Try to get saved data from localStorage
-    const saved = localStorage.getItem(`form_${key}`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing saved form data:', e);
-        return initialState;
+  // Effect to load saved data on client-side only
+  useEffect(() => {
+    setIsClient(true);
+    try {
+      const saved = localStorage.getItem(`form_${key}`);
+      const timestamp = localStorage.getItem(`form_${key}_timestamp`);
+
+      if (saved) {
+        const parsedData = JSON.parse(saved);
+        setFormData(parsedData);
       }
-    }
 
-    return initialState;
-  });
+      if (timestamp) {
+        setLastSaved(new Date(timestamp));
+      }
+    } catch (e) {
+      console.error('Error loading saved form data:', e);
+    }
+  }, [key]);
 
   // Debounced save function
   const debouncedSave = useCallback(
     debounce((data: T) => {
+      if (!isClient) return;
+
       try {
         localStorage.setItem(`form_${key}`, JSON.stringify(data));
-        // Save timestamp for "Resume Progress" feature
-        localStorage.setItem(`form_${key}_timestamp`, new Date().toISOString());
+        const now = new Date();
+        localStorage.setItem(`form_${key}_timestamp`, now.toISOString());
+        setLastSaved(now);
       } catch (e) {
         console.error('Error auto-saving form data:', e);
       }
     }, autoSaveDelay),
-    [key, autoSaveDelay]
+    [key, autoSaveDelay, isClient]
   );
 
   // Auto-save whenever form data changes
   useEffect(() => {
-    debouncedSave(formData);
+    if (isClient) {
+      debouncedSave(formData);
+    }
     return () => {
       debouncedSave.cancel();
     };
-  }, [formData, debouncedSave]);
+  }, [formData, debouncedSave, isClient]);
 
-  // Clear saved data
-  const clearSavedData = () => {
+  const clearSavedData = useCallback(() => {
+    if (!isClient) return;
+
     try {
       localStorage.removeItem(`form_${key}`);
+      localStorage.removeItem(`form_${key}_timestamp`);
       setFormData(initialState);
+      setLastSaved(null);
     } catch (e) {
       console.error('Error clearing form data:', e);
     }
-  };
-
-  // Get last saved timestamp
-  const getLastSaved = () => {
-    try {
-      const timestamp = localStorage.getItem(`form_${key}_timestamp`);
-      return timestamp ? new Date(timestamp) : null;
-    } catch (e) {
-      console.error('Error getting last saved timestamp:', e);
-      return null;
-    }
-  };
+  }, [key, initialState, isClient]);
 
   return {
     formData,
     setFormData,
     clearSavedData,
-    lastSaved: getLastSaved()
+    lastSaved
   };
 }

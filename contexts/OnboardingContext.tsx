@@ -34,7 +34,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       title: 'Author Profile',
       path: '/onboarding/profile',
       completed: false,
-      current: pathname === '/onboarding/profile'
+      current: pathname === '/onboarding/profile' || pathname === '/onboarding'
     },
     {
       title: 'Book Details',
@@ -44,7 +44,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }
   ]);
 
-  // Check for existing profile on mount
+  // Check for existing profile on mount and when pathname changes
   useEffect(() => {
     const checkProfile = async () => {
       const supabase = createClient();
@@ -59,11 +59,26 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           .eq('id', user.id)
           .single();
 
-        if (profile) {
-          setSteps(
-            steps.map((step, index) => ({
+        // If we're on the book details page or have a profile, mark the profile step as completed
+        if (profile || pathname === '/onboarding/book') {
+          setSteps((prevSteps) =>
+            prevSteps.map((step, index) => ({
               ...step,
-              completed: index === 0 ? true : step.completed
+              completed: index === 0 ? true : step.completed,
+              current:
+                step.path === pathname ||
+                (pathname === '/onboarding' &&
+                  step.path === '/onboarding/profile')
+            }))
+          );
+        } else {
+          setSteps((prevSteps) =>
+            prevSteps.map((step) => ({
+              ...step,
+              current:
+                step.path === pathname ||
+                (pathname === '/onboarding' &&
+                  step.path === '/onboarding/profile')
             }))
           );
         }
@@ -71,21 +86,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     };
 
     checkProfile();
-  }, []);
-
-  // Update current step based on pathname
-  useEffect(() => {
-    setSteps(
-      steps.map((step) => ({
-        ...step,
-        current: step.path === pathname
-      }))
-    );
   }, [pathname]);
 
   const markStepComplete = (index: number) => {
-    setSteps(
-      steps.map((step, i) => {
+    setSteps((prevSteps) =>
+      prevSteps.map((step, i) => {
         if (i === index) {
           return { ...step, completed: true, current: false };
         }
