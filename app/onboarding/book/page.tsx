@@ -1,7 +1,8 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import BookForm from '@/components/forms/BookForm';
-import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import { BookForm } from '@/components/forms/BookForm';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Book Details Form Page
@@ -9,52 +10,48 @@ import ErrorBoundary from '@/components/ui/ErrorBoundary';
  * Requires an author profile to be completed first
  */
 export default async function BookPage() {
-  // Create server-side Supabase client
   const supabase = createClient();
 
-  // Get current user
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
 
-  // If no user, redirect to sign in
-  if (!user) {
-    redirect('/signin');
-  }
+    if (!user) {
+      redirect('/signin');
+    }
 
-  // Check if user has an author profile
-  const { data: profile } = await supabase
-    .from('author_profiles')
-    .select('id')
-    .eq('id', user.id)
-    .single();
+    // Check if user has an author profile
+    const { data: profile } = await supabase
+      .from('author_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
 
-  // If no profile, redirect to profile creation
-  if (!profile) {
-    redirect('/onboarding/profile');
-  }
+    if (!profile) {
+      redirect('/onboarding/profile');
+    }
 
-  // Get existing book if any
-  const { data: book } = await supabase
-    .from('books')
-    .select('*')
-    .eq('author_id', user.id)
-    .single();
+    // Get existing book if any
+    const { data: book } = await supabase
+      .from('books')
+      .select('*')
+      .eq('author_id', user.id)
+      .single();
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-white">Book Details</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Tell us about your book to help find the right podcasts
-        </p>
-      </div>
-
-      {/* Book Form with Error Boundary */}
-      <ErrorBoundary>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Book Details</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Tell us about your book to help find the right podcasts
+          </p>
+        </div>
         <BookForm existingBook={book} />
-      </ErrorBoundary>
-    </div>
-  );
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in book page:', error);
+    return null;
+  }
 }

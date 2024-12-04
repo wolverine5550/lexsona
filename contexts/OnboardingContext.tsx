@@ -1,71 +1,99 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect
+} from 'react';
+import { usePathname } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 
-interface OnboardingStep {
-  id: number;
+interface Step {
   title: string;
-  description: string;
   path: string;
   completed: boolean;
   current: boolean;
 }
 
 interface OnboardingContextType {
-  steps: OnboardingStep[];
+  steps: Step[];
   currentStepIndex: number;
-  setCurrentStepIndex: (index: number) => void;
-  markStepComplete: (stepId: number) => void;
-  canProceed: boolean;
-  setCanProceed: (value: boolean) => void;
+  markStepComplete: (index: number) => void;
 }
 
-// Define onboarding steps
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  {
-    id: 1,
-    title: 'Create Profile',
-    description: 'Add your bio and expertise',
-    path: '/onboarding/profile',
-    completed: false,
-    current: true
-  },
-  {
-    id: 2,
-    title: 'Add Book',
-    description: 'Enter your book details',
-    path: '/onboarding/book',
-    completed: false,
-    current: false
-  }
-];
-
-// Create context
 const OnboardingContext = createContext<OnboardingContextType | undefined>(
   undefined
 );
 
-// Provider component
-export function OnboardingProvider({
-  children
-}: {
-  children: React.ReactNode;
-}) {
-  // Track current step
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+export function OnboardingProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [steps, setSteps] = useState<Step[]>([
+    {
+      title: 'Author Profile',
+      path: '/onboarding/profile',
+      completed: false,
+      current: pathname === '/onboarding/profile'
+    },
+    {
+      title: 'Book Details',
+      path: '/onboarding/book',
+      completed: false,
+      current: pathname === '/onboarding/book'
+    }
+  ]);
 
-  // Track step completion
-  const [steps, setSteps] = useState(ONBOARDING_STEPS);
+  // Check for existing profile on mount
+  useEffect(() => {
+    const checkProfile = async () => {
+      const supabase = createClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-  // Track if current step is valid and can proceed
-  const [canProceed, setCanProceed] = useState(false);
+      if (user) {
+        const { data: profile } = await supabase
+          .from('author_profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
 
-  // Mark a step as complete
-  const markStepComplete = (stepId: number) => {
-    setSteps((prevSteps) =>
-      prevSteps.map((step) =>
-        step.id === stepId ? { ...step, completed: true } : step
-      )
+        if (profile) {
+          setSteps(
+            steps.map((step, index) => ({
+              ...step,
+              completed: index === 0 ? true : step.completed
+            }))
+          );
+        }
+      }
+    };
+
+    checkProfile();
+  }, []);
+
+  // Update current step based on pathname
+  useEffect(() => {
+    setSteps(
+      steps.map((step) => ({
+        ...step,
+        current: step.path === pathname
+      }))
+    );
+  }, [pathname]);
+
+  const markStepComplete = (index: number) => {
+    setSteps(
+      steps.map((step, i) => {
+        if (i === index) {
+          return { ...step, completed: true, current: false };
+        }
+        if (i === index + 1) {
+          return { ...step, current: true };
+        }
+        return step;
+      })
     );
   };
 
@@ -73,11 +101,8 @@ export function OnboardingProvider({
     <OnboardingContext.Provider
       value={{
         steps,
-        currentStepIndex,
-        setCurrentStepIndex,
-        markStepComplete,
-        canProceed,
-        setCanProceed
+        currentStepIndex: steps.findIndex((step) => step.current),
+        markStepComplete
       }}
     >
       {children}
@@ -85,7 +110,6 @@ export function OnboardingProvider({
   );
 }
 
-// Custom hook to use the context
 export function useOnboarding() {
   const context = useContext(OnboardingContext);
   if (context === undefined) {

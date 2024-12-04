@@ -1,169 +1,165 @@
 'use client';
 
-import { BaseAuthForm } from './BaseAuthForm';
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { toast } from '@/components/ui/Toasts/use-toast';
+import { Eye, EyeOff } from 'lucide-react'; // Import eye icons
 
 export function SignUpForm() {
-  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { signUp } = useAuth();
 
-  /**
-   * Handle sign up form submission
-   * Creates new user account and redirects to onboarding
-   */
-  const handleSubmit = async (formData: FormData) => {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
-
-    // Validate passwords match
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (password !== confirmPassword) {
-      throw new Error('Passwords do not match');
+      toast({
+        title: 'Error',
+        description: 'Passwords do not match',
+        variant: 'destructive'
+      });
+      return;
     }
 
-    // Validate password strength
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters');
+    setLoading(true);
+    try {
+      await signUp(email, password);
+
+      // Redirect to onboarding page
+      window.location.href = '/onboarding';
+    } catch (error) {
+      console.error('Sign up error:', error);
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Error creating account',
+        variant: 'destructive'
+      });
+      setLoading(false);
     }
-
-    const supabase = createClient();
-
-    // Create new user account
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-
-    if (error) throw error;
-
-    // Redirect to onboarding
-    router.push('/onboarding');
   };
 
-  /**
-   * Footer component with links to other auth options
-   */
-  const AuthFooter = () => (
-    <div className="space-y-4 text-center text-sm text-zinc-400">
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-zinc-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-zinc-950 px-2 text-zinc-500">Or</span>
-        </div>
-      </div>
-
-      {/* Sign in link */}
-      <p>
-        Already have an account?{' '}
-        <Link href="/signin" className="text-blue-500 hover:text-blue-400">
-          Sign in
-        </Link>
-      </p>
-    </div>
-  );
-
   return (
-    <BaseAuthForm
-      onSubmit={handleSubmit}
-      submitText="Create Account"
-      footer={<AuthFooter />}
-    >
-      {/* Email Input */}
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-zinc-200"
-        >
-          Email address
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="you@example.com"
-        />
-      </div>
-
-      {/* Password Input */}
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-zinc-200"
-        >
-          Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="••••••••"
-        />
-        <p className="mt-1 text-xs text-zinc-500">
-          Must be at least 8 characters
-        </p>
-      </div>
-
-      {/* Confirm Password Input */}
-      <div>
-        <label
-          htmlFor="confirmPassword"
-          className="block text-sm font-medium text-zinc-200"
-        >
-          Confirm Password
-        </label>
-        <input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          required
-          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="••••••••"
-        />
-      </div>
-
-      {/* Terms Agreement */}
-      <div className="space-y-2">
-        <label className="flex items-start">
-          <input
-            type="checkbox"
-            name="terms"
-            required
-            className="mt-1 rounded border-zinc-800 bg-zinc-900 text-blue-500 focus:ring-blue-500"
-          />
-          <span className="ml-2 text-sm text-zinc-400">
-            I agree to the{' '}
-            <Link
-              href="/terms"
-              className="text-blue-500 hover:text-blue-400"
-              target="_blank"
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle>Create Account</CardTitle>
+        <CardDescription>
+          Enter your email and create a password to get started
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-zinc-200"
             >
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link
-              href="/privacy"
-              className="text-blue-500 hover:text-blue-400"
-              target="_blank"
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              placeholder="you@example.com"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-zinc-200"
             >
-              Privacy Policy
-            </Link>
-          </span>
-        </label>
-      </div>
-    </BaseAuthForm>
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                required
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="confirmPassword"
+              className="text-sm font-medium text-zinc-200"
+            >
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                required
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            loading={loading}
+            disabled={loading}
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-zinc-400">
+          Already have an account?{' '}
+          <Link href="/signin" className="text-blue-500 hover:text-blue-400">
+            Sign in
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

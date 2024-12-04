@@ -1,3 +1,6 @@
+import { createClient } from '@/utils/supabase/server';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import {
@@ -156,9 +159,20 @@ const faqs = [
   }
 ];
 
-export default function Home() {
+export default async function HomePage() {
+  const supabase = createClient();
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  // If user is signed in, redirect to dashboard
+  if (user) {
+    redirect('/dashboard');
+  }
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-screen flex-col">
       {/* Hero Section - Updated styling */}
       <section className="relative px-6 lg:px-8 py-24 md:py-32 bg-gradient-to-b from-zinc-900 to-zinc-950">
         <div className="mx-auto max-w-7xl">
@@ -176,10 +190,18 @@ export default function Home() {
                 Expand your reach and connect with engaged listeners.
               </p>
               <div className="flex gap-x-6 justify-center lg:justify-start">
-                <Button size="lg">Get Started</Button>
-                <Button variant="outline" size="lg">
-                  Learn More
-                </Button>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                >
+                  Get Started
+                </Link>
+                <Link
+                  href="#features"
+                  className="text-sm font-semibold leading-6 text-white"
+                >
+                  Learn more <span aria-hidden="true">→</span>
+                </Link>
               </div>
             </div>
 

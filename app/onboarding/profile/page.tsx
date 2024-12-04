@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import AuthorProfileForm from '@/components/forms/AuthorProfileForm';
+import { AuthorProfileForm } from '@/components/forms/AuthorProfileForm';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 /**

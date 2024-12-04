@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import Button from '@/components/ui/Button';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { OnboardingSuccess } from '@/components/ui/OnboardingSuccess';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { ResumeProgress } from '@/components/ui/ResumeProgress';
 
@@ -16,8 +15,10 @@ interface AuthorProfileFormData {
   expertise: string[];
   socialLinks: {
     website?: string;
-    twitter?: string;
+    x?: string;
     linkedin?: string;
+    instagram?: string;
+    tiktok?: string;
   };
 }
 
@@ -42,26 +43,41 @@ const EXPERTISE_OPTIONS = [
   "Children's Books"
 ];
 
-export function AuthorProfileForm() {
+interface AuthorProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  bio: string;
+  expertise: string[];
+  social_links: {
+    website?: string;
+    twitter?: string;
+    linkedin?: string;
+  };
+}
+
+interface AuthorProfileFormProps {
+  existingProfile?: AuthorProfile | null;
+}
+
+export function AuthorProfileForm({ existingProfile }: AuthorProfileFormProps) {
   const router = useRouter();
   const supabase = createClient();
+  const [loading, setLoading] = useState(false);
 
   // Get onboarding context
-  const { markStepComplete, setCanProceed } = useOnboarding();
+  const { markStepComplete } = useOnboarding();
 
-  // Success state - moved up
-  const [isSuccess, setIsSuccess] = useState(false);
-
-  // Replace useState with useFormPersistence
+  // Remove success state since we're navigating directly
   const { formData, setFormData, clearSavedData, lastSaved } =
     useFormPersistence<AuthorProfileFormData>({
       key: 'author_profile',
       initialState: {
-        firstName: '',
-        lastName: '',
-        bio: '',
-        expertise: [],
-        socialLinks: {}
+        firstName: existingProfile?.first_name || '',
+        lastName: existingProfile?.last_name || '',
+        bio: existingProfile?.bio || '',
+        expertise: existingProfile?.expertise || [],
+        socialLinks: existingProfile?.social_links || {}
       }
     });
 
@@ -69,10 +85,46 @@ export function AuthorProfileForm() {
   const [discardedProgress, setDiscardedProgress] = useState(false);
 
   // Show resume progress if there's saved data and user hasn't discarded it
-  const showResumeProgress = lastSaved && !discardedProgress && !isSuccess;
+  const showResumeProgress = lastSaved && !discardedProgress;
 
   // Validation state with extended error type
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Add client-side only rendering for ResumeProgress
+  const [mounted, setMounted] = useState(false);
+
+  // Add state to track if form has been submitted
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Only show ResumeProgress after component mounts
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const [hasErrors, setHasErrors] = useState(false);
+
+  /**
+   * Scroll to first error with smooth behavior
+   */
+  const scrollToFirstError = () => {
+    // Wait for the error messages to be rendered
+    setTimeout(() => {
+      const firstErrorElement = document.querySelector('.text-red-500');
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+
+        // Optional: Add focus for accessibility
+        const nearestInput =
+          firstErrorElement.previousElementSibling as HTMLElement;
+        if (nearestInput) {
+          nearestInput.focus();
+        }
+      }
+    }, 100); // Small delay to ensure DOM is updated
+  };
 
   /**
    * Validate form data
@@ -87,17 +139,13 @@ export function AuthorProfileForm() {
       newErrors.bio = 'Bio must be at least 50 characters';
     }
     if (formData.expertise.length === 0) {
-      // Now expertise is correctly typed as string[]
       newErrors.expertise = [];
     }
 
     setErrors(newErrors);
+    setHasErrors(Object.keys(newErrors).length > 0);
 
-    // Update canProceed based on validation
-    const isValid = Object.keys(newErrors).length === 0;
-    setCanProceed(isValid);
-
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
   /**
@@ -108,8 +156,10 @@ export function AuthorProfileForm() {
     value: string | string[]
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Validate on change to provide immediate feedback
-    validateForm();
+    // Only validate if form has been submitted once
+    if (isSubmitted) {
+      validateForm();
+    }
   };
 
   /**
@@ -149,9 +199,15 @@ export function AuthorProfileForm() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitted(true);
 
-    if (!validateForm()) return;
+    const isValid = validateForm();
+    if (!isValid) {
+      scrollToFirstError();
+      return;
+    }
 
+    setLoading(true);
     try {
       const {
         data: { user }
@@ -173,38 +229,27 @@ export function AuthorProfileForm() {
       // Clear saved data on successful submission
       clearSavedData();
 
-      // Mark step as complete and show success
+      // Mark step as complete
       markStepComplete(1);
-      setIsSuccess(true);
+
+      // Navigate directly to book form
+      router.push('/onboarding/book');
     } catch (error) {
       console.error('Error saving profile:', error);
       setErrors({ submit: 'Failed to save profile' });
+      setHasErrors(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Show success state if complete
-  if (isSuccess) {
-    return (
-      <OnboardingSuccess
-        title="Profile Created Successfully!"
-        message="Great job! Now let's add information about your book."
-        nextStepPath="/onboarding/book"
-        nextStepText="Add Book Details"
-      />
-    );
-  }
-
   return (
     <div>
-      {/* Resume Progress Banner */}
-      {showResumeProgress && (
+      {/* Resume Progress Banner - Only show after mount */}
+      {mounted && showResumeProgress && (
         <ResumeProgress
           lastSaved={lastSaved}
-          onResume={() => {
-            // Form data is already loaded by the hook
-            // Just close the banner
-            setDiscardedProgress(true);
-          }}
+          onResume={() => setDiscardedProgress(true)}
           onDiscard={() => {
             clearSavedData();
             setDiscardedProgress(true);
@@ -230,7 +275,7 @@ export function AuthorProfileForm() {
               onChange={(e) => handleChange('firstName', e.target.value)}
               className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            {errors.firstName && (
+            {isSubmitted && errors.firstName && (
               <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
             )}
           </div>
@@ -250,7 +295,7 @@ export function AuthorProfileForm() {
               onChange={(e) => handleChange('lastName', e.target.value)}
               className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            {errors.lastName && (
+            {isSubmitted && errors.lastName && (
               <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
             )}
           </div>
@@ -273,47 +318,12 @@ export function AuthorProfileForm() {
             className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="Tell us about yourself and your work..."
           />
-          {errors.bio && (
+          {isSubmitted && errors.bio && (
             <p className="mt-1 text-sm text-red-500">{errors.bio}</p>
           )}
         </div>
 
-        {/* Expertise Selection */}
-        <div>
-          <label
-            htmlFor="expertise"
-            className="block text-sm font-medium text-zinc-200"
-          >
-            Areas of Expertise
-          </label>
-          <p className="mt-1 text-sm text-zinc-400">
-            Select all that apply to your writing and background
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {EXPERTISE_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => handleExpertiseToggle(option)}
-                className={`flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors
-                  ${
-                    formData.expertise.includes(option)
-                      ? 'bg-blue-500/20 text-blue-500 border-blue-500'
-                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
-                  } border`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-          {errors.expertise && (
-            <p className="mt-2 text-sm text-red-500">
-              Select at least one area of expertise
-            </p>
-          )}
-        </div>
-
-        {/* Social Links */}
+        {/* Social Links - Moved up */}
         <div className="space-y-4">
           <label
             htmlFor="socialLinks"
@@ -351,25 +361,75 @@ export function AuthorProfileForm() {
             </div>
           </div>
 
-          {/* Twitter */}
+          {/* X (formerly Twitter) */}
           <div>
             <label
-              htmlFor="twitter"
+              htmlFor="x"
               className="block text-sm font-medium text-zinc-300"
             >
-              Twitter
+              X
             </label>
             <div className="mt-1 flex rounded-md">
               <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
                 @
               </span>
               <input
-                id="twitter"
-                name="twitter"
+                id="x"
+                name="x"
                 type="text"
-                value={formData.socialLinks.twitter || ''}
+                value={formData.socialLinks.x || ''}
+                onChange={(e) => handleSocialLinkChange('x', e.target.value)}
+                placeholder="username"
+                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <label
+              htmlFor="instagram"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Instagram
+            </label>
+            <div className="mt-1 flex rounded-md">
+              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
+                @
+              </span>
+              <input
+                id="instagram"
+                name="instagram"
+                type="text"
+                value={formData.socialLinks.instagram || ''}
                 onChange={(e) =>
-                  handleSocialLinkChange('twitter', e.target.value)
+                  handleSocialLinkChange('instagram', e.target.value)
+                }
+                placeholder="username"
+                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* TikTok */}
+          <div>
+            <label
+              htmlFor="tiktok"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              TikTok
+            </label>
+            <div className="mt-1 flex rounded-md">
+              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
+                @
+              </span>
+              <input
+                id="tiktok"
+                name="tiktok"
+                type="text"
+                value={formData.socialLinks.tiktok || ''}
+                onChange={(e) =>
+                  handleSocialLinkChange('tiktok', e.target.value)
                 }
                 placeholder="username"
                 className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -403,6 +463,54 @@ export function AuthorProfileForm() {
             </div>
           </div>
         </div>
+
+        {/* Expertise Selection - Moved down */}
+        <div>
+          <label
+            htmlFor="expertise"
+            className="block text-sm font-medium text-zinc-200"
+          >
+            Areas of Expertise
+          </label>
+          <p className="mt-1 text-sm text-zinc-400">
+            Select all that apply to your writing and background
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {EXPERTISE_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => handleExpertiseToggle(option)}
+                className={`flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors
+                  ${
+                    formData.expertise.includes(option)
+                      ? 'bg-blue-500/20 text-blue-500 border-blue-500'
+                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                  } border`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {isSubmitted && errors.expertise && (
+            <p className="mt-2 text-sm text-red-500">
+              Select at least one area of expertise
+            </p>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          className={`w-full ${hasErrors ? 'bg-red-600 hover:bg-red-700' : ''}`}
+          loading={loading}
+        >
+          {loading
+            ? 'Saving...'
+            : hasErrors && isSubmitted
+              ? 'Failed - Check Errors Above'
+              : 'Continue'}
+        </Button>
       </form>
     </div>
   );
