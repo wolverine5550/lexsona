@@ -114,14 +114,6 @@ export function BookForm({ existingBook }: BookFormProps) {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      console.log('Saving book data:', {
-        author_id: user.id,
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        genre: formData.genre,
-        target_audience: formData.targetAudience
-      });
-
       const { error } = await supabase.from('books').upsert({
         author_id: user.id,
         title: formData.title.trim(),
@@ -135,14 +127,18 @@ export function BookForm({ existingBook }: BookFormProps) {
         throw error;
       }
 
-      markStepComplete(1);
-      router.push('/dashboard');
+      await markStepComplete(1);
+
+      // Add a small delay before navigation to ensure state updates are complete
+      setTimeout(() => {
+        // Use window.location for a full page navigation
+        window.location.href = '/onboarding/podcast-preferences';
+      }, 100);
     } catch (error: any) {
       console.error('Error saving book:', error);
       setErrors({ submit: `Failed to save book: ${error.message}` });
       setHasErrors(true);
       scrollToFirstError();
-    } finally {
       setLoading(false);
     }
   };
@@ -272,10 +268,10 @@ export function BookForm({ existingBook }: BookFormProps) {
         loading={loading}
       >
         {loading
-          ? 'Saving...'
+          ? 'Submitting...'
           : hasErrors && isSubmitted
             ? 'Failed - Check Errors Above'
-            : 'Complete Setup'}
+            : 'Continue'}
       </Button>
     </form>
   );

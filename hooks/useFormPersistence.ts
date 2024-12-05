@@ -1,87 +1,81 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import debounce from 'lodash/debounce';
+import { useState, useCallback, useEffect } from 'react';
 
-interface UseFormPersistenceProps<T> {
+export interface UseFormPersistenceProps<T> {
   key: string;
-  initialState: T;
-  autoSaveDelay?: number;
+  initialData?: T;
 }
 
 export function useFormPersistence<T>({
   key,
-  initialState,
-  autoSaveDelay = 1000
+  initialData
 }: UseFormPersistenceProps<T>) {
-  // Initialize with initialState first
-  const [formData, setFormData] = useState<T>(initialState);
+  const [formData, setInternalFormData] = useState<T | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isClient, setIsClient] = useState(false);
 
-  // Effect to load saved data on client-side only
+  // Load data from localStorage on mount
   useEffect(() => {
-    setIsClient(true);
-    try {
-      const saved = localStorage.getItem(`form_${key}`);
-      const timestamp = localStorage.getItem(`form_${key}_timestamp`);
-
-      if (saved) {
-        const parsedData = JSON.parse(saved);
-        setFormData(parsedData);
-      }
-
-      if (timestamp) {
-        setLastSaved(new Date(timestamp));
-      }
-    } catch (e) {
-      console.error('Error loading saved form data:', e);
-    }
-  }, [key]);
-
-  // Debounced save function
-  const debouncedSave = useCallback(
-    debounce((data: T) => {
-      if (!isClient) return;
-
+    const savedData = localStorage.getItem(key);
+    if (savedData) {
       try {
-        localStorage.setItem(`form_${key}`, JSON.stringify(data));
-        const now = new Date();
-        localStorage.setItem(`form_${key}_timestamp`, now.toISOString());
-        setLastSaved(now);
-      } catch (e) {
-        console.error('Error auto-saving form data:', e);
+        setInternalFormData(JSON.parse(savedData));
+      } catch (error) {
+        console.error('Error parsing saved form data:', error);
+        if (initialData) {
+          setInternalFormData(initialData);
+        }
       }
-    }, autoSaveDelay),
-    [key, autoSaveDelay, isClient]
+    } else if (initialData) {
+      setInternalFormData(initialData);
+    }
+  }, [key, initialData]);
+
+  // Create a wrapped setFormData function that also persists to localStorage
+  const setFormData = useCallback(
+    (data: T | ((prev: T | null) => T)) => {
+      const newData = data instanceof Function ? data(formData) : data;
+      try {
+        localStorage.setItem(key, JSON.stringify(newData));
+        setLastSaved(new Date());
+        setInternalFormData(newData);
+      } catch (error) {
+        console.error('Error saving form data:', error);
+      }
+    },
+    [key, formData]
   );
 
-  // Auto-save whenever form data changes
-  useEffect(() => {
-    if (isClient) {
-      debouncedSave(formData);
-    }
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [formData, debouncedSave, isClient]);
+  // Load persisted data with callback
+  const loadPersistedData = useCallback(
+    (callback: (data: T | null) => void) => {
+      const savedData = localStorage.getItem(key);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          callback(parsedData);
+        } catch (error) {
+          console.error('Error loading persisted data:', error);
+          callback(null);
+        }
+      } else {
+        callback(initialData || null);
+      }
+    },
+    [key, initialData]
+  );
 
+  // Clear saved data
   const clearSavedData = useCallback(() => {
-    if (!isClient) return;
-
-    try {
-      localStorage.removeItem(`form_${key}`);
-      localStorage.removeItem(`form_${key}_timestamp`);
-      setFormData(initialState);
-      setLastSaved(null);
-    } catch (e) {
-      console.error('Error clearing form data:', e);
-    }
-  }, [key, initialState, isClient]);
+    localStorage.removeItem(key);
+    setInternalFormData(initialData || null);
+    setLastSaved(null);
+  }, [key, initialData]);
 
   return {
     formData,
     setFormData,
+    loadPersistedData,
     clearSavedData,
     lastSaved
   };

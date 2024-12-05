@@ -1,12 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { createClient } from '@/utils/supabase/client';
 import Button from '@/components/ui/Button';
-import { useOnboarding } from '@/contexts/OnboardingContext';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { ResumeProgress } from '@/components/ui/ResumeProgress';
+
+// Constants for form options
+const EXPERTISE_OPTIONS = [
+  'Fiction Writing',
+  'Non-Fiction',
+  'Business',
+  'Self-Help',
+  'Technology',
+  'Health & Wellness',
+  'Education',
+  'Personal Development',
+  'Science',
+  'History',
+  'Politics',
+  'Arts & Culture'
+];
+
+const SOCIAL_PLATFORMS = {
+  website: 'Website',
+  x: 'X (Twitter)',
+  linkedin: 'LinkedIn',
+  instagram: 'Instagram',
+  tiktok: 'TikTok'
+} as const;
+
+interface AuthorProfileFormProps {
+  existingProfile?: {
+    first_name?: string;
+    last_name?: string;
+    bio?: string;
+    expertise?: string[];
+    social_links?: {
+      website?: string;
+      x?: string;
+      linkedin?: string;
+      instagram?: string;
+      tiktok?: string;
+    };
+  };
+}
 
 interface AuthorProfileFormData {
   firstName: string;
@@ -22,496 +61,304 @@ interface AuthorProfileFormData {
   };
 }
 
-// Extend the error type to include submit error
-interface FormErrors extends Partial<AuthorProfileFormData> {
+interface FormErrors {
+  firstName?: string;
+  lastName?: string;
+  bio?: string;
+  expertise?: string[];
   submit?: string;
-}
-
-// Available expertise options
-const EXPERTISE_OPTIONS = [
-  'Fiction Writing',
-  'Non-Fiction',
-  'Self-Help',
-  'Business',
-  'Technology',
-  'Health & Wellness',
-  'Personal Development',
-  'Biography',
-  'History',
-  'Science',
-  'Education',
-  "Children's Books"
-];
-
-interface AuthorProfile {
-  id: string;
-  first_name: string;
-  last_name: string;
-  bio: string;
-  expertise: string[];
-  social_links: {
-    website?: string;
-    twitter?: string;
-    linkedin?: string;
-  };
-}
-
-interface AuthorProfileFormProps {
-  existingProfile?: AuthorProfile | null;
 }
 
 export function AuthorProfileForm({ existingProfile }: AuthorProfileFormProps) {
   const router = useRouter();
-  const supabase = createClient();
-  const [loading, setLoading] = useState(false);
-
-  // Get onboarding context
   const { markStepComplete } = useOnboarding();
-
-  // Remove success state since we're navigating directly
-  const { formData, setFormData, clearSavedData, lastSaved } =
-    useFormPersistence<AuthorProfileFormData>({
-      key: 'author_profile',
-      initialState: {
-        firstName: existingProfile?.first_name || '',
-        lastName: existingProfile?.last_name || '',
-        bio: existingProfile?.bio || '',
-        expertise: existingProfile?.expertise || [],
-        socialLinks: existingProfile?.social_links || {}
-      }
-    });
-
-  // Track if user has chosen to discard saved progress
-  const [discardedProgress, setDiscardedProgress] = useState(false);
-
-  // Show resume progress if there's saved data and user hasn't discarded it
-  const showResumeProgress = lastSaved && !discardedProgress;
-
-  // Validation state with extended error type
-  const [errors, setErrors] = useState<FormErrors>({});
-
-  // Add client-side only rendering for ResumeProgress
+  const supabase = createClient();
   const [mounted, setMounted] = useState(false);
 
-  // Add state to track if form has been submitted
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  // Initialize form data with default values
+  const defaultFormData: AuthorProfileFormData = {
+    firstName: existingProfile?.first_name || '',
+    lastName: existingProfile?.last_name || '',
+    bio: existingProfile?.bio || '',
+    expertise: existingProfile?.expertise || [],
+    socialLinks: existingProfile?.social_links || {
+      website: '',
+      x: '',
+      linkedin: '',
+      instagram: '',
+      tiktok: ''
+    }
+  };
 
-  // Only show ResumeProgress after component mounts
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Use form persistence hook with proper initialization
+  const { formData, setFormData, clearSavedData } =
+    useFormPersistence<AuthorProfileFormData>({
+      key: 'author_profile',
+      initialData: defaultFormData
+    });
+
+  // Ensure formData is never null by using defaultFormData as fallback
+  const currentFormData = formData || defaultFormData;
+
+  // Handle client-side only rendering
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const [hasErrors, setHasErrors] = useState(false);
-
-  /**
-   * Scroll to first error with smooth behavior
-   */
-  const scrollToFirstError = () => {
-    // Wait for the error messages to be rendered
-    setTimeout(() => {
-      const firstErrorElement = document.querySelector('.text-red-500');
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-
-        // Optional: Add focus for accessibility
-        const nearestInput =
-          firstErrorElement.previousElementSibling as HTMLElement;
-        if (nearestInput) {
-          nearestInput.focus();
-        }
-      }
-    }, 100); // Small delay to ensure DOM is updated
-  };
-
-  /**
-   * Validate form data
-   * Returns true if valid, false otherwise
-   */
   const validateForm = () => {
     const newErrors: FormErrors = {};
 
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.bio || formData.bio.length < 50) {
+    if (!currentFormData.firstName)
+      newErrors.firstName = 'First name is required';
+    if (!currentFormData.lastName) newErrors.lastName = 'Last name is required';
+    if (!currentFormData.bio || currentFormData.bio.length < 50) {
       newErrors.bio = 'Bio must be at least 50 characters';
     }
-    if (formData.expertise.length === 0) {
+    if (currentFormData.expertise.length === 0) {
       newErrors.expertise = [];
     }
 
     setErrors(newErrors);
-    setHasErrors(Object.keys(newErrors).length > 0);
-
     return Object.keys(newErrors).length === 0;
   };
 
-  /**
-   * Handle form field changes
-   */
   const handleChange = (
     field: keyof AuthorProfileFormData,
     value: string | string[]
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const updatedData = { ...currentFormData, [field]: value };
+    setFormData(updatedData);
     // Only validate if form has been submitted once
     if (isSubmitted) {
       validateForm();
     }
   };
 
-  /**
-   * Handle expertise selection/deselection
-   */
   const handleExpertiseToggle = (expertise: string) => {
-    setFormData((prev) => {
-      const current = prev.expertise;
-      const updated = current.includes(expertise)
-        ? current.filter((e) => e !== expertise)
-        : [...current, expertise];
+    const current = currentFormData.expertise;
+    const updated = current.includes(expertise)
+      ? current.filter((e) => e !== expertise)
+      : [...current, expertise];
 
-      return { ...prev, expertise: updated };
-    });
-    validateForm();
+    handleChange('expertise', updated);
   };
 
-  /**
-   * Handle social link updates
-   */
   const handleSocialLinkChange = (
-    platform: keyof typeof formData.socialLinks,
+    platform: keyof typeof currentFormData.socialLinks,
     value: string
   ) => {
-    setFormData((prev) => ({
-      ...prev,
+    const updatedData = {
+      ...currentFormData,
       socialLinks: {
-        ...prev.socialLinks,
+        ...currentFormData.socialLinks,
         [platform]: value
       }
-    }));
+    };
+    setFormData(updatedData);
     validateForm();
   };
 
-  /**
-   * Handle form submission
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
 
     const isValid = validateForm();
     if (!isValid) {
-      scrollToFirstError();
       return;
     }
 
     setLoading(true);
+
     try {
       const {
         data: { user }
       } = await supabase.auth.getUser();
+
       if (!user) throw new Error('No user found');
 
-      // Save profile data
       const { error } = await supabase.from('author_profiles').upsert({
         id: user.id,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        bio: formData.bio,
-        expertise: formData.expertise,
-        social_links: formData.socialLinks
+        first_name: currentFormData.firstName,
+        last_name: currentFormData.lastName,
+        bio: currentFormData.bio,
+        expertise: currentFormData.expertise,
+        social_links: currentFormData.socialLinks
       });
 
       if (error) throw error;
 
-      // Clear saved data on successful submission
+      // Mark step as complete
+      await markStepComplete(0);
+
+      // Clear form data
       clearSavedData();
 
-      // Mark step as complete (Author Profile is step 0)
-      markStepComplete(0);
-
-      // Navigate directly to book form
-      router.push('/onboarding/book');
-    } catch (error) {
+      // Add a small delay before navigation to ensure state updates are complete
+      setTimeout(() => {
+        // Use window.location for a full page navigation
+        window.location.href = '/onboarding/book';
+      }, 100);
+    } catch (error: any) {
       console.error('Error saving profile:', error);
-      setErrors({ submit: 'Failed to save profile' });
-      setHasErrors(true);
-    } finally {
+      setErrors({
+        submit: `Failed to save profile: ${error.message}`
+      });
       setLoading(false);
     }
   };
 
+  // Don't render anything until mounted to prevent hydration issues
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <div>
-      {/* Resume Progress Banner - Only show after mount */}
-      {mounted && showResumeProgress && (
-        <ResumeProgress
-          lastSaved={lastSaved}
-          onResume={() => setDiscardedProgress(true)}
-          onDiscard={() => {
-            clearSavedData();
-            setDiscardedProgress(true);
-          }}
-        />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {errors.submit && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4">
+          <p className="text-sm text-red-500">{errors.submit}</p>
+        </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6" role="form">
-        {/* Name Fields */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="firstName"
-              className="block text-sm font-medium text-zinc-200"
-            >
-              First Name
-            </label>
-            <input
-              id="firstName"
-              name="firstName"
-              type="text"
-              value={formData.firstName}
-              onChange={(e) => handleChange('firstName', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {isSubmitted && errors.firstName && (
-              <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="lastName"
-              className="block text-sm font-medium text-zinc-200"
-            >
-              Last Name
-            </label>
-            <input
-              id="lastName"
-              name="lastName"
-              type="text"
-              value={formData.lastName}
-              onChange={(e) => handleChange('lastName', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {isSubmitted && errors.lastName && (
-              <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Bio Field */}
+      <div className="space-y-4">
         <div>
           <label
-            htmlFor="bio"
-            className="block text-sm font-medium text-zinc-200"
+            htmlFor="firstName"
+            className="block text-sm font-medium text-white"
           >
+            First Name
+          </label>
+          <input
+            id="firstName"
+            name="firstName"
+            type="text"
+            value={currentFormData.firstName}
+            onChange={(e) => handleChange('firstName', e.target.value)}
+            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          {errors.firstName && (
+            <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="lastName"
+            className="block text-sm font-medium text-white"
+          >
+            Last Name
+          </label>
+          <input
+            id="lastName"
+            name="lastName"
+            type="text"
+            value={currentFormData.lastName}
+            onChange={(e) => handleChange('lastName', e.target.value)}
+            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          {errors.lastName && (
+            <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="bio" className="block text-sm font-medium text-white">
             Bio
           </label>
           <textarea
             id="bio"
             name="bio"
-            value={formData.bio}
-            onChange={(e) => handleChange('bio', e.target.value)}
             rows={4}
+            value={currentFormData.bio}
+            onChange={(e) => handleChange('bio', e.target.value)}
             className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder="Tell us about yourself and your work..."
+            placeholder="Tell us about yourself..."
           />
-          {isSubmitted && errors.bio && (
+          {errors.bio && (
             <p className="mt-1 text-sm text-red-500">{errors.bio}</p>
           )}
-        </div>
-
-        {/* Social Links - Moved up */}
-        <div className="space-y-4">
-          <label
-            htmlFor="socialLinks"
-            className="block text-sm font-medium text-zinc-200"
-          >
-            Social & Professional Links
-          </label>
-          <p className="mt-1 text-sm text-zinc-400">
-            Add links to help podcasters learn more about you
+          <p className="mt-2 text-sm text-zinc-400">
+            Minimum 50 characters. This will be shown on your public profile.
           </p>
-
-          {/* Website */}
-          <div>
-            <label
-              htmlFor="website"
-              className="block text-sm font-medium text-zinc-300"
-            >
-              Website
-            </label>
-            <div className="mt-1 flex rounded-md">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
-                https://
-              </span>
-              <input
-                id="website"
-                name="website"
-                type="text"
-                value={formData.socialLinks.website || ''}
-                onChange={(e) =>
-                  handleSocialLinkChange('website', e.target.value)
-                }
-                placeholder="yourwebsite.com"
-                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* X (formerly Twitter) */}
-          <div>
-            <label
-              htmlFor="x"
-              className="block text-sm font-medium text-zinc-300"
-            >
-              X
-            </label>
-            <div className="mt-1 flex rounded-md">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
-                @
-              </span>
-              <input
-                id="x"
-                name="x"
-                type="text"
-                value={formData.socialLinks.x || ''}
-                onChange={(e) => handleSocialLinkChange('x', e.target.value)}
-                placeholder="username"
-                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Instagram */}
-          <div>
-            <label
-              htmlFor="instagram"
-              className="block text-sm font-medium text-zinc-300"
-            >
-              Instagram
-            </label>
-            <div className="mt-1 flex rounded-md">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
-                @
-              </span>
-              <input
-                id="instagram"
-                name="instagram"
-                type="text"
-                value={formData.socialLinks.instagram || ''}
-                onChange={(e) =>
-                  handleSocialLinkChange('instagram', e.target.value)
-                }
-                placeholder="username"
-                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* TikTok */}
-          <div>
-            <label
-              htmlFor="tiktok"
-              className="block text-sm font-medium text-zinc-300"
-            >
-              TikTok
-            </label>
-            <div className="mt-1 flex rounded-md">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
-                @
-              </span>
-              <input
-                id="tiktok"
-                name="tiktok"
-                type="text"
-                value={formData.socialLinks.tiktok || ''}
-                onChange={(e) =>
-                  handleSocialLinkChange('tiktok', e.target.value)
-                }
-                placeholder="username"
-                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* LinkedIn */}
-          <div>
-            <label
-              htmlFor="linkedin"
-              className="block text-sm font-medium text-zinc-300"
-            >
-              LinkedIn
-            </label>
-            <div className="mt-1 flex rounded-md">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-900 px-3 text-zinc-400">
-                linkedin.com/in/
-              </span>
-              <input
-                id="linkedin"
-                name="linkedin"
-                type="text"
-                value={formData.socialLinks.linkedin || ''}
-                onChange={(e) =>
-                  handleSocialLinkChange('linkedin', e.target.value)
-                }
-                placeholder="profile"
-                className="block w-full rounded-r-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
         </div>
 
-        {/* Expertise Selection - Moved down */}
         <div>
-          <label
-            htmlFor="expertise"
-            className="block text-sm font-medium text-zinc-200"
-          >
+          <label className="block text-sm font-medium text-white">
             Areas of Expertise
           </label>
-          <p className="mt-1 text-sm text-zinc-400">
-            Select all that apply to your writing and background
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {EXPERTISE_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => handleExpertiseToggle(option)}
-                className={`flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors
-                  ${
-                    formData.expertise.includes(option)
-                      ? 'bg-blue-500/20 text-blue-500 border-blue-500'
-                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
-                  } border`}
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {EXPERTISE_OPTIONS.map((expertise) => (
+              <label
+                key={expertise}
+                className={`flex cursor-pointer items-center space-x-2 rounded-lg border p-4 ${
+                  currentFormData.expertise.includes(expertise)
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-zinc-800 hover:border-zinc-700'
+                }`}
               >
-                {option}
-              </button>
+                <input
+                  type="checkbox"
+                  checked={currentFormData.expertise.includes(expertise)}
+                  onChange={() => handleExpertiseToggle(expertise)}
+                  className="h-4 w-4 rounded border-zinc-800 bg-zinc-900 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-zinc-200">{expertise}</span>
+              </label>
             ))}
           </div>
-          {isSubmitted && errors.expertise && (
-            <p className="mt-2 text-sm text-red-500">
-              Select at least one area of expertise
-            </p>
-          )}
         </div>
 
-        {/* Submit Button */}
+        <div>
+          <label className="block text-sm font-medium text-white">
+            Social Media Links (Optional)
+          </label>
+          <div className="mt-2 space-y-4">
+            {Object.entries(SOCIAL_PLATFORMS).map(([platform, label]) => (
+              <div key={platform}>
+                <label
+                  htmlFor={platform}
+                  className="block text-sm font-medium text-zinc-400"
+                >
+                  {label}
+                </label>
+                <input
+                  type="url"
+                  id={platform}
+                  name={platform}
+                  value={
+                    currentFormData.socialLinks[
+                      platform as keyof typeof currentFormData.socialLinks
+                    ]
+                  }
+                  onChange={(e) =>
+                    handleSocialLinkChange(
+                      platform as keyof typeof currentFormData.socialLinks,
+                      e.target.value
+                    )
+                  }
+                  className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-white placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder={`Your ${label} URL`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
         <Button
           type="submit"
-          className={`w-full ${hasErrors ? 'bg-red-600 hover:bg-red-700' : ''}`}
           loading={loading}
+          disabled={loading}
+          className="w-full sm:w-auto"
         >
-          {loading
-            ? 'Saving...'
-            : hasErrors && isSubmitted
-              ? 'Failed - Check Errors Above'
-              : 'Continue'}
+          {loading ? 'Submitting...' : 'Continue'}
         </Button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }

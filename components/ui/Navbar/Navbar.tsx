@@ -29,7 +29,6 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
-              <span className="text-sm text-zinc-400">{user.email}</span>
               <button
                 onClick={handleSignOut}
                 className="text-sm text-zinc-400 hover:text-white"
