@@ -48,16 +48,25 @@ export default function AuthLayout({
       </div>
 
       {/* Footer */}
-      <div className="fixed bottom-4 left-0 right-0 text-center text-sm text-zinc-500">
-        <p>
+      <div className="fixed bottom-0 left-0 right-0 p-4 text-center text-sm bg-zinc-900/50 backdrop-blur-sm border-t border-zinc-800">
+        <p className="text-zinc-400">
           By continuing, you agree to our{' '}
-          <Link href="/terms" className="text-zinc-400 hover:text-white">
+          <Link
+            href="/terms"
+            className="text-zinc-300 hover:text-white underline"
+          >
             Terms of Service
           </Link>{' '}
           and{' '}
-          <Link href="/privacy" className="text-zinc-400 hover:text-white">
+          <Link
+            href="/privacy"
+            className="text-zinc-300 hover:text-white underline"
+          >
             Privacy Policy
           </Link>
+        </p>
+        <p className="mt-2 text-zinc-500">
+          &copy; {new Date().getFullYear()} Lexsona. All rights reserved.
         </p>
       </div>
     </div>

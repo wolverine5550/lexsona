@@ -7,27 +7,20 @@ import type { Database } from '@/types/database';
 
 interface Props {
   limit?: number;
-  filter?: 'all' | 'new' | 'contacted' | 'declined';
-  sortBy?: 'score' | 'date';
 }
 
-type MatchStatus = Database['public']['Enums']['match_status'];
-
-// Change from interface extends to type intersection
-export type MatchWithPodcast =
-  Database['public']['Tables']['matches']['Row'] & {
-    podcast_name?: string;
-  };
+type MatchWithPodcast = Database['public']['Tables']['matches']['Row'] & {
+  podcast_name?: string;
+  category?: string;
+  listeners?: number;
+  frequency?: string;
+};
 
 /**
  * Match List Component
- * Displays podcast matches with filtering and sorting options
+ * Displays podcast matches in a scrollable list with match percentage
  */
-export function MatchList({
-  limit = 10,
-  filter = 'all',
-  sortBy = 'score'
-}: Props) {
+export function MatchList({ limit = 5 }: Props) {
   const { state, actions } = useDashboard();
   const { data, loading, error } = state.matches;
   const [sortedMatches, setSortedMatches] = useState(data);
@@ -37,160 +30,88 @@ export function MatchList({
   }, [actions]);
 
   useEffect(() => {
-    let filtered = [...data];
-
-    // Apply filter
-    if (filter !== 'all') {
-      filtered = filtered.filter((match) => match.status === filter);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      if (sortBy === 'score') {
-        return b.match_score - a.match_score;
-      }
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    });
-
-    // Apply limit
+    // Sort by match score and apply limit
+    const filtered = [...data].sort((a, b) => b.match_score - a.match_score);
     setSortedMatches(filtered.slice(0, limit));
-  }, [data, filter, sortBy, limit]);
+  }, [data, limit]);
 
   return (
     <DashboardLoadingState loading={loading} error={error}>
       <div className="space-y-4">
-        <MatchFilters
-          currentFilter={filter}
-          currentSort={sortBy}
-          matchCount={data.length}
-          onFilterChange={(filter) => {}}
-          onSortChange={(sort) => {}}
-        />
-        <MatchGrid
-          matches={sortedMatches}
-          onUpdateStatus={actions.updateMatchStatus}
-        />
+        <h1 className="text-3xl font-bold text-white mb-8">Recent Matches</h1>
+
+        {sortedMatches.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-zinc-400">No matches found</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {sortedMatches.map((match) => (
+              <div
+                key={match.id}
+                className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-zinc-700 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {match.podcast_name || 'Podcast Name'}
+                    </h2>
+                    <p className="text-zinc-400 mt-1">
+                      {match.category || 'Literature & Writing'}
+                    </p>
+
+                    <p className="mt-4 text-zinc-300">
+                      {match.description ||
+                        'A weekly podcast featuring in-depth interviews with authors about their latest books and writing process.'}
+                    </p>
+
+                    <div className="mt-4 flex items-center gap-6 text-sm text-zinc-400">
+                      <div className="flex items-center gap-2">
+                        <span>{match.listeners || '50K'} listeners</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>{match.frequency || 'Weekly'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-4">
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                      {Math.round(match.match_score * 100)}% Match
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-4">
+                  <button
+                    onClick={() => {}}
+                    className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                  >
+                    Send Pitch
+                  </button>
+                  <button
+                    onClick={() => {}}
+                    className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sortedMatches.length >= limit && (
+          <div className="text-center mt-8">
+            <button
+              onClick={() => {}}
+              className="text-blue-500 hover:text-blue-400 text-sm font-medium"
+            >
+              Upgrade to see more matches →
+            </button>
+          </div>
+        )}
       </div>
     </DashboardLoadingState>
   );
-}
-
-interface MatchFiltersProps {
-  currentFilter: string;
-  currentSort: string;
-  matchCount: number;
-  onFilterChange: (filter: string) => void;
-  onSortChange: (sort: string) => void;
-}
-
-function MatchFilters({
-  currentFilter,
-  currentSort,
-  matchCount,
-  onFilterChange,
-  onSortChange
-}: MatchFiltersProps) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex gap-2">
-        <select
-          className="px-3 py-1 rounded border border-gray-200"
-          value={currentFilter}
-          onChange={(e) => onFilterChange(e.target.value)}
-        >
-          <option value="all">All Matches</option>
-          <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="declined">Declined</option>
-        </select>
-        <select
-          className="px-3 py-1 rounded border border-gray-200"
-          value={currentSort}
-          onChange={(e) => onSortChange(e.target.value)}
-        >
-          <option value="score">Match Score</option>
-          <option value="date">Date Added</option>
-        </select>
-      </div>
-      <p className="text-sm text-gray-500">
-        {matchCount} match{matchCount !== 1 ? 'es' : ''} found
-      </p>
-    </div>
-  );
-}
-
-interface MatchGridProps {
-  matches: MatchWithPodcast[]; // Update type here
-  onUpdateStatus: (id: string, status: MatchStatus) => Promise<void>;
-}
-
-function MatchGrid({ matches, onUpdateStatus }: MatchGridProps) {
-  if (matches.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">No matches found</div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {matches.map((match) => (
-        <MatchCard
-          key={match.id}
-          match={match}
-          onUpdateStatus={onUpdateStatus}
-        />
-      ))}
-    </div>
-  );
-}
-
-interface MatchCardProps {
-  match: MatchWithPodcast; // Update type here
-  onUpdateStatus: (id: string, status: MatchStatus) => Promise<void>;
-}
-
-function MatchCard({ match, onUpdateStatus }: MatchCardProps) {
-  const handleStatusChange = async (status: MatchStatus) => {
-    await onUpdateStatus(match.id, status);
-  };
-
-  return (
-    <div className="p-4 rounded-lg border border-gray-200 hover:border-blue-500 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-medium text-gray-900">
-          {match.podcast_name ?? `Podcast #${match.podcast_id}`}
-        </h3>
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {Math.round(match.match_score * 100)}% Match
-        </span>
-      </div>
-      <p className="text-sm text-gray-500 mb-4">
-        {match.match_reason?.join(', ') || 'No match reason provided'}
-      </p>
-      <div className="flex justify-between items-center">
-        <select
-          aria-label="Match status"
-          className="px-2 py-1 text-sm rounded border border-gray-200"
-          value={match.status}
-          onChange={(e) => handleStatusChange(e.target.value as MatchStatus)}
-        >
-          <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="declined">Declined</option>
-        </select>
-        <time className="text-xs text-gray-400">
-          {formatDate(match.created_at)}
-        </time>
-      </div>
-    </div>
-  );
-}
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  });
 }
