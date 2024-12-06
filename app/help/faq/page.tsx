@@ -86,41 +86,41 @@ const faqData = {
 
 export default function FAQPage() {
   return (
-    <div className="min-h-screen bg-zinc-950 py-12">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Header */}
-        <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Frequently Asked Questions
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-zinc-300">
-            Find answers to common questions about using Lexsona. Can't find
-            what you're looking for? Contact our support team.
-          </p>
-        </div>
+    <section className="min-h-screen pt-16">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-12 text-center">
+            <h1 className="text-4xl font-bold text-zinc-100">
+              Frequently Asked Questions
+            </h1>
+            <p className="mt-2 text-lg text-zinc-400">
+              Find answers to common questions about using Lexsona. Can't find
+              what you're looking for? Our support team is here to help.
+            </p>
+          </div>
 
-        {/* FAQ Search Component */}
-        <FAQSearch faqData={faqData} />
+          {/* FAQ Search Component */}
+          <FAQSearch faqData={faqData} />
 
-        {/* Contact Support */}
-        <div className="mx-auto mt-20 max-w-2xl text-center">
-          <h2 className="text-xl font-semibold text-white">
-            Still have questions?
-          </h2>
-          <p className="mt-2 text-zinc-400">
-            Our support team is here to help you with any questions you may
-            have.
-          </p>
-          <div className="mt-6">
-            <a
-              href="/help/contact"
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
-            >
-              Contact Support
-            </a>
+          {/* Contact Support */}
+          <div className="mt-20 text-center">
+            <h2 className="text-xl font-semibold text-zinc-100">
+              Still have questions?
+            </h2>
+            <p className="mt-2 text-zinc-400">
+              Create a support ticket and our team will assist you promptly.
+            </p>
+            <div className="mt-6">
+              <a
+                href="/help#create-ticket"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+              >
+                Create Support Ticket
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

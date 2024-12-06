@@ -1,7 +1,7 @@
 'use client';
 
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button/Button';
+import Card from '@/components/ui/Card/Card';
 import { updateName } from '@/utils/auth-helpers/server';
 import { handleRequest } from '@/utils/auth-helpers/client';
 import { useRouter } from 'next/navigation';
@@ -29,24 +29,25 @@ export default function NameForm({ userName }: { userName: string }) {
       description="Please enter your full name, or a display name you are comfortable with."
       footer={
         <div className="flex flex-col items-start justify-between sm:flex-row sm:items-center">
-          <p className="pb-4 sm:pb-0">64 characters maximum</p>
+          <p className="text-sm text-zinc-400">64 characters maximum</p>
           <Button
             variant="slim"
             type="submit"
             form="nameForm"
             loading={isSubmitting}
+            className="mt-4 w-full sm:mt-0 sm:w-auto"
           >
             Update Name
           </Button>
         </div>
       }
     >
-      <div className="mt-8 mb-4 text-xl font-semibold">
+      <div className="mt-6">
         <form id="nameForm" onSubmit={(e) => handleSubmit(e)}>
           <input
             type="text"
             name="fullName"
-            className="w-1/2 p-3 rounded-md bg-zinc-800"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
             defaultValue={userName}
             placeholder="Your name"
             maxLength={64}

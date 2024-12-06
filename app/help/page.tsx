@@ -35,98 +35,138 @@ const supportResources = [
     icon: <PlayCircle className="h-6 w-6" />,
     href: '/help/tutorial',
     color: 'text-orange-500'
-  },
-  {
-    title: 'Contact Support',
-    description: 'Reach out to our team directly',
-    icon: <MessageSquare className="h-6 w-6" />,
-    href: '/help/contact',
-    color: 'text-red-500'
   }
 ];
 
-export default function HelpPage() {
+export default function Help() {
   return (
-    <div className="min-h-screen bg-zinc-950 py-12">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Header */}
-        <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Help & Support
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-zinc-300">
-            Get the help you need to succeed with Lexsona. Choose from our range
-            of support resources below.
-          </p>
-        </div>
-
-        {/* Support Resources Grid */}
-        <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:max-w-4xl lg:grid-cols-2">
-          {supportResources.map((resource) => (
-            <Link
-              key={resource.title}
-              href={resource.href}
-              className="relative flex flex-col gap-6 rounded-2xl bg-zinc-900 p-6 ring-1 ring-zinc-800 transition-all hover:bg-zinc-800 hover:ring-zinc-700"
-            >
-              <div className={`${resource.color}`}>{resource.icon}</div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  {resource.title}
-                </h3>
-                <p className="mt-2 text-sm text-zinc-400">
-                  {resource.description}
-                </p>
-              </div>
-              <div className="flex items-center text-sm text-zinc-400">
-                <span>Learn more</span>
-                <span className="ml-2 inline-block transition-transform group-hover:translate-x-1">
-                  →
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Quick Help Section */}
-        <div className="mx-auto mt-20 max-w-2xl rounded-2xl bg-zinc-900 p-8 ring-1 ring-zinc-800">
-          <h2 className="text-xl font-semibold text-white">Need Quick Help?</h2>
-          <p className="mt-2 text-zinc-400">
-            Search our knowledge base or browse popular topics
-          </p>
-
-          {/* Search Bar */}
-          <div className="mt-6">
-            <input
-              type="text"
-              placeholder="Search for help..."
-              className="w-full rounded-lg bg-zinc-800 px-4 py-2 text-white placeholder-zinc-500 ring-1 ring-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+    <section className="min-h-screen pt-16">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-12 text-center">
+            <h1 className="text-4xl font-bold text-zinc-100">Help & Support</h1>
+            <p className="mt-2 text-lg text-zinc-400">
+              Get the help you need to succeed with Lexsona. Choose from our
+              range of support resources below.
+            </p>
           </div>
 
-          {/* Popular Topics */}
-          <div className="mt-6">
-            <h3 className="text-sm font-medium text-zinc-400">
-              Popular Topics
-            </h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                'Getting Started',
-                'Account Settings',
-                'Billing',
-                'API Access',
-                'Integrations'
-              ].map((topic) => (
-                <button
-                  key={topic}
-                  className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700"
+          <div className="grid gap-6 sm:grid-cols-2">
+            <a
+              href="/help/faq"
+              className="group relative rounded-2xl bg-zinc-900 p-6 hover:bg-zinc-800/50"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-zinc-800 group-hover:bg-zinc-700">
+                <svg
+                  className="h-6 w-6 text-blue-400 group-hover:text-blue-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
                 >
-                  {topic}
-                </button>
-              ))}
-            </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+                  />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-white">
+                Frequently Asked Questions
+              </h3>
+              <p className="mt-2 text-sm text-zinc-400 group-hover:text-zinc-300">
+                Find quick answers to common questions about using Lexsona
+              </p>
+            </a>
+
+            <a
+              href="/help/docs"
+              className="group relative rounded-2xl bg-zinc-900 p-6 hover:bg-zinc-800/50"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-zinc-800 group-hover:bg-zinc-700">
+                <svg
+                  className="h-6 w-6 text-purple-400 group-hover:text-purple-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
+                  />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-white">
+                Documentation
+              </h3>
+              <p className="mt-2 text-sm text-zinc-400 group-hover:text-zinc-300">
+                In-depth guides and technical documentation
+              </p>
+            </a>
+
+            <a
+              href="/help/tickets"
+              className="group relative rounded-2xl bg-zinc-900 p-6 hover:bg-zinc-800/50"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-zinc-800 group-hover:bg-zinc-700">
+                <svg
+                  className="h-6 w-6 text-green-400 group-hover:text-green-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                  />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-white">
+                Support Tickets
+              </h3>
+              <p className="mt-2 text-sm text-zinc-400 group-hover:text-zinc-300">
+                Get personalized help from our support team
+              </p>
+            </a>
+
+            <a
+              href="/help/tutorials"
+              className="group relative rounded-2xl bg-zinc-900 p-6 hover:bg-zinc-800/50"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-zinc-800 group-hover:bg-zinc-700">
+                <svg
+                  className="h-6 w-6 text-orange-400 group-hover:text-orange-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"
+                  />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-white">
+                Tutorial Guide
+              </h3>
+              <p className="mt-2 text-sm text-zinc-400 group-hover:text-zinc-300">
+                Learn how to use Lexsona step by step
+              </p>
+            </a>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

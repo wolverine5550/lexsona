@@ -97,6 +97,30 @@ export interface Database {
           trial_end?: string | null
         }
       }
+      support_tickets: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string
+          status: 'open' | 'in_progress' | 'resolved' | 'closed'
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          created_at: string
+          updated_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description: string
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          created_at?: string
+          updated_at?: string
+          resolved_at?: string | null
+        }
+      }
     }
   }
 }

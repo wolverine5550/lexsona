@@ -29,6 +29,18 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/account"
+                className="text-sm text-zinc-400 hover:text-white"
+              >
+                Account
+              </Link>
+              <Link
+                href="/help"
+                className="text-sm text-zinc-400 hover:text-white"
+              >
+                Help
+              </Link>
               <button
                 onClick={handleSignOut}
                 className="text-sm text-zinc-400 hover:text-white"
