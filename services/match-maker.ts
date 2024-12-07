@@ -142,7 +142,15 @@ export class MatchMaker {
       breakdown,
       suggestedTopics: author.topics.filter((topic) =>
         podcast.topicalFocus.includes(topic)
-      )
+      ),
+      podcast: {
+        title: podcast.title || '',
+        category: podcast.category || 'Uncategorized',
+        description: podcast.description || '',
+        listeners: podcast.listeners || 0,
+        rating: podcast.rating || 0,
+        frequency: podcast.frequency || 'weekly'
+      }
     };
   }
 
@@ -160,17 +168,50 @@ export class MatchMaker {
     return data;
   }
 
-  private static async getPodcastAnalysis(
-    podcastId: string
-  ): Promise<PodcastAnalysis> {
+  private static async getPodcastAnalysis(podcastId: string): Promise<
+    PodcastAnalysis & {
+      title: string;
+      description: string;
+      category: string;
+      listeners: number;
+      rating: number;
+      frequency: string;
+    }
+  > {
     const { data, error } = await supabase
       .from('podcast_analysis')
-      .select('*')
-      .eq('id', podcastId)
+      .select(
+        `
+        *,
+        podcasts!inner (
+          title,
+          description,
+          categories,
+          total_episodes,
+          listen_score
+        )
+      `
+      )
+      .eq('podcast_id', podcastId)
       .single();
 
     if (error) throw error;
     if (!data) throw new Error('Podcast analysis not found');
-    return data;
+
+    const categories = Array.isArray(data.podcasts.categories)
+      ? data.podcasts.categories
+      : [];
+    const listenScore = data.podcasts.listen_score || 0;
+    const totalEpisodes = data.podcasts.total_episodes || 0;
+
+    return {
+      ...data,
+      title: data.podcasts.title,
+      description: data.podcasts.description || '',
+      category: categories[0] || 'Uncategorized',
+      listeners: listenScore,
+      rating: listenScore ? listenScore / 20 : 0,
+      frequency: totalEpisodes ? 'weekly' : 'unknown'
+    };
   }
 }

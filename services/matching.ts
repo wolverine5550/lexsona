@@ -69,7 +69,14 @@ export class PodcastMatchingService {
    * @returns Match result with scores and explanations
    */
   private static calculateMatch(
-    podcast: PodcastFeatures,
+    podcast: PodcastFeatures & {
+      title: string;
+      description: string;
+      category: string;
+      listeners: number;
+      rating: number;
+      frequency: string;
+    },
     preferences: UserPreferences
   ): PodcastMatch {
     const breakdown: MatchFactors = {
@@ -97,7 +104,15 @@ export class PodcastMatchingService {
       overallScore,
       confidence,
       breakdown,
-      suggestedTopics: podcast.mainTopics
+      suggestedTopics: podcast.mainTopics,
+      podcast: {
+        title: podcast.title,
+        category: podcast.category,
+        description: podcast.description,
+        listeners: podcast.listeners,
+        rating: podcast.rating,
+        frequency: podcast.frequency
+      }
     };
   }
 
@@ -292,21 +307,112 @@ export class PodcastMatchingService {
   /**
    * Retrieves analyzed podcasts from database
    */
-  private static async getAnalyzedPodcasts(): Promise<PodcastFeatures[]> {
+  private static async getAnalyzedPodcasts(): Promise<
+    Array<
+      PodcastFeatures & {
+        title: string;
+        description: string;
+        category: string;
+        listeners: number;
+        rating: number;
+        frequency: string;
+      }
+    >
+  > {
     const supabase = createClient();
+
+    interface DbPodcast {
+      title: string;
+      description: string | null;
+      categories: string[];
+      total_episodes: number | null;
+      listen_score: number | null;
+    }
+
+    interface DbFeatures {
+      mainTopics: string[];
+      contentStyle: Record<string, boolean>;
+      averageEpisodeLength: number;
+      complexityLevel: string;
+      productionQuality: number;
+    }
+
+    interface DbResponse {
+      podcast_id: string;
+      features: DbFeatures;
+      podcasts: DbPodcast;
+    }
 
     const { data, error } = await supabase
       .from('podcast_analysis')
-      .select('podcast_id, features')
-      .order('created_at', { ascending: false });
+      .select(
+        `
+        podcast_id,
+        features,
+        podcasts!inner (
+          title,
+          description,
+          categories,
+          total_episodes,
+          listen_score
+        )
+      `
+      )
+      .order('created_at', { ascending: false })
+      .throwOnError();
 
-    if (error) {
+    if (!data) {
       throw new Error('Failed to fetch analyzed podcasts');
     }
 
-    return data.map((row) => ({
-      id: row.podcast_id,
-      ...row.features
-    }));
+    return (data as unknown as DbResponse[]).map((row) => {
+      const categories = Array.isArray(row.podcasts.categories)
+        ? row.podcasts.categories
+        : [];
+      const listenScore = row.podcasts.listen_score || 0;
+      const totalEpisodes = row.podcasts.total_episodes || 0;
+
+      const result: PodcastFeatures & {
+        title: string;
+        description: string;
+        category: string;
+        listeners: number;
+        rating: number;
+        frequency: string;
+        updateFrequency: string;
+        hostingStyle: string[];
+        languageComplexity: number;
+      } = {
+        id: row.podcast_id,
+        mainTopics: row.features.mainTopics,
+        contentStyle: {
+          isInterview: row.features.contentStyle?.isInterview || false,
+          isNarrative: row.features.contentStyle?.isNarrative || false,
+          isEducational: row.features.contentStyle?.isEducational || false,
+          isDebate: row.features.contentStyle?.isDebate || false
+        },
+        averageEpisodeLength: row.features.averageEpisodeLength,
+        complexityLevel:
+          (row.features.complexityLevel as
+            | 'beginner'
+            | 'intermediate'
+            | 'advanced') || 'intermediate',
+        productionQuality: row.features.productionQuality,
+        // Base podcast info
+        title: row.podcasts.title,
+        description: row.podcasts.description || '',
+        // Computed fields
+        category: categories[0] || 'Uncategorized',
+        listeners: listenScore,
+        rating: listenScore ? listenScore / 20 : 0,
+        frequency: totalEpisodes > 100 ? 'weekly' : 'monthly',
+        // Add missing required properties
+        updateFrequency: totalEpisodes > 100 ? 'weekly' : 'monthly',
+        hostingStyle: [],
+        languageComplexity: 0
+      };
+
+      return result;
+    });
   }
 }

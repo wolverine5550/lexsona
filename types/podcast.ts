@@ -330,3 +330,46 @@ export interface PodcastNoteWithDetails extends PodcastNote {
     coverImage: string;
   };
 }
+
+/**
+ * Features extracted from podcast analysis
+ */
+export interface PodcastFeatures {
+  // Analysis features
+  id: string;
+  mainTopics: string[];
+  contentStyle: Record<string, boolean>;
+  averageEpisodeLength: number;
+  complexityLevel: string;
+  productionQuality: number;
+  // Base podcast info from podcasts table
+  title: string;
+  publisher: string;
+  description: string | null;
+  categories: string[];
+  total_episodes: number | null;
+  listen_score: number | null;
+  // Computed fields
+  category?: string; // Derived from categories[0]
+  listeners?: number; // Derived from listen_score
+  rating?: number; // Derived from listen_score
+  frequency?: string; // Derived from total_episodes
+}
+
+/**
+ * Raw podcast analysis data from database
+ */
+export interface PodcastAnalysisRecord {
+  id: string;
+  podcast_id: string;
+  features: {
+    mainTopics: string[];
+    contentStyle: Record<string, boolean>;
+    averageEpisodeLength: number;
+    complexityLevel: string;
+    productionQuality: number;
+  };
+  confidence: number;
+  last_analyzed: string;
+  analysis_version: string;
+}

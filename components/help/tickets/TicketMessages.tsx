@@ -144,7 +144,7 @@ export function TicketMessages({ ticketId }: TicketMessagesProps) {
           <Input
             type="text"
             value={newMessage}
-            onValueChange={handleInputChange}
+            onChange={handleInputChange}
             placeholder="Type your message..."
             disabled={isLoading}
             className="flex-1"
