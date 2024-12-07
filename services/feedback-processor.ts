@@ -62,11 +62,10 @@ export class FeedbackProcessor {
     userId: string,
     preferences: PreferenceAdjustment
   ): Promise<void> {
-    const { error } = await this.supabase.from('user_preferences').upsert({
-      userId,
-      topicWeights: preferences.topicWeights,
-      stylePreferences: preferences.stylePreferences,
-      lastUpdated: new Date().toISOString()
+    const { error } = await this.supabase.from('podcast_preferences').upsert({
+      author_id: userId,
+      style_preferences: preferences.stylePreferences,
+      updated_at: new Date().toISOString()
     });
 
     if (error) {

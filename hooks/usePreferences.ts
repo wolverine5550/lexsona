@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 interface Preferences {
-  userId: string;
-  preferred_categories?: string[];
+  authorId: string;
+  style_preferences?: {
+    isInterviewPreferred: boolean;
+    isStorytellingPreferred: boolean;
+    isEducationalPreferred: boolean;
+    isDebatePreferred: boolean;
+  };
   // Add other preference fields as needed
 }
 
-export const usePreferences = (userId: string) => {
+export const usePreferences = (authorId: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const supabase = createClient();
@@ -18,9 +23,9 @@ export const usePreferences = (userId: string) => {
       setError(null);
 
       const { error: supabaseError } = await supabase
-        .from('user_preferences')
+        .from('podcast_preferences')
         .upsert({
-          user_id: userId,
+          author_id: authorId,
           ...preferences,
           updated_at: new Date().toISOString()
         });

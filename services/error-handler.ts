@@ -116,26 +116,37 @@ export class ErrorHandler {
     try {
       // Try to get popular podcasts in user's preferred categories
       const { data: preferences } = await this.supabase
-        .from('user_preferences')
-        .select('topicWeights')
-        .eq('userId', userId)
+        .from('podcast_preferences')
+        .select('style_preferences')
+        .eq('author_id', userId)
         .single();
 
-      if (preferences?.topicWeights) {
-        // Get top podcasts in preferred categories
+      if (preferences?.style_preferences) {
+        // Get top podcasts matching preferred styles
         const { data: podcasts } = await this.supabase
           .from('podcasts')
           .select('*')
-          .in('category', Object.keys(preferences.topicWeights))
           .order('rating', { ascending: false })
           .limit(10);
 
         if (podcasts?.length) {
-          return podcasts;
+          // Filter podcasts based on style preferences
+          return podcasts.filter((podcast) => {
+            const userPrefs = preferences.style_preferences;
+            return (
+              (userPrefs.isInterviewPreferred &&
+                podcast.format === 'interview') ||
+              (userPrefs.isStorytellingPreferred &&
+                podcast.format === 'storytelling') ||
+              (userPrefs.isEducationalPreferred &&
+                podcast.format === 'educational') ||
+              (userPrefs.isDebatePreferred && podcast.format === 'debate')
+            );
+          });
         }
       }
 
-      // If no preferences or podcasts found, return general popular podcasts
+      // If no preferences or matching podcasts found, return general popular podcasts
       const { data: popularPodcasts } = await this.supabase
         .from('podcasts')
         .select('*')
@@ -159,5 +170,58 @@ export class ErrorHandler {
   ): Promise<void> {
     // Implementation would depend on notification service (e.g., SendGrid, Slack)
     console.error('CRITICAL ERROR:', errorReport);
+  }
+
+  public static async logError(
+    userId: string,
+    error: Error,
+    context: string
+  ): Promise<void> {
+    const errorDetails = {
+      message: error.message,
+      stack: error.stack,
+      context,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // First, get current error count
+      const { data: currentPrefs } = await this.supabase
+        .from('podcast_preferences')
+        .select('error_count')
+        .eq('author_id', userId)
+        .single();
+
+      const error_count = (currentPrefs?.error_count || 0) + 1;
+
+      // Update user preferences
+      const { error: preferencesError } = await this.supabase
+        .from('podcast_preferences')
+        .update({
+          error_count,
+          last_error: errorDetails,
+          updated_at: new Date().toISOString()
+        })
+        .eq('author_id', userId);
+
+      if (preferencesError) {
+        console.error('Failed to update error count:', preferencesError);
+      }
+
+      // Log to error_logs table
+      const { error: logError } = await this.supabase
+        .from('error_logs')
+        .insert({
+          user_id: userId,
+          error_details: errorDetails,
+          created_at: new Date().toISOString()
+        });
+
+      if (logError) {
+        console.error('Failed to log error:', logError);
+      }
+    } catch (err) {
+      console.error('Error in error handler:', err);
+    }
   }
 }

@@ -59,8 +59,6 @@ export class InterviewServiceImpl implements InterviewService {
       if (error) throw error;
       if (!interview) throw new Error('No interview returned');
 
-      await this.createActivity(interview);
-
       return { data: interview };
     } catch (error) {
       return {
@@ -83,10 +81,6 @@ export class InterviewServiceImpl implements InterviewService {
         .eq('id', interviewId);
 
       if (error) throw error;
-
-      if (data.status) {
-        await this.createStatusActivity(interviewId, data);
-      }
 
       return { data: undefined };
     } catch (error) {
@@ -122,40 +116,5 @@ export class InterviewServiceImpl implements InterviewService {
     return () => {
       channel.unsubscribe();
     };
-  }
-
-  private async createActivity(interview: Interview): Promise<void> {
-    await this.supabase.from('activities').insert([
-      {
-        author_id: interview.author_id,
-        type: 'interview',
-        title: 'Interview Scheduled',
-        description: `New interview scheduled for ${interview.scheduled_date}`,
-        metadata: {
-          interview_id: interview.id,
-          podcast_id: interview.podcast_id,
-          scheduled_date: interview.scheduled_date,
-          scheduled_time: interview.scheduled_time
-        }
-      }
-    ]);
-  }
-
-  private async createStatusActivity(
-    interviewId: string,
-    data: Partial<Database['public']['Tables']['interviews']['Update']>
-  ): Promise<void> {
-    await this.supabase.from('activities').insert([
-      {
-        author_id: data.author_id!,
-        type: 'interview',
-        title: 'Interview Status Updated',
-        description: `Interview status changed to ${data.status}`,
-        metadata: {
-          interview_id: interviewId,
-          new_status: data.status
-        }
-      }
-    ]);
   }
 }

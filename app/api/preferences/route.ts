@@ -1,108 +1,67 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import type { Database } from '@/types/supabase';
-import type { UserPreferences } from '@/types/preferences';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
 
-/**
- * POST /api/preferences
- * Saves or updates user preferences
- */
-export async function POST(request: Request) {
-  try {
-    // Get authenticated user
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Parse request body
-    const preferences = await request.json();
-
-    // Validate request data
-    if (
-      !preferences.topics ||
-      !preferences.preferredLength ||
-      !preferences.stylePreferences
-    ) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Update or insert preferences
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .upsert({
-        user_id: session.user.id,
-        topics: preferences.topics,
-        preferred_length: preferences.preferredLength,
-        style_preferences: preferences.stylePreferences,
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error saving preferences:', error);
-      return NextResponse.json(
-        { error: 'Failed to save preferences' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error in preferences API:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * GET /api/preferences
- * Retrieves user preferences
- */
 export async function GET() {
   try {
-    // Get authenticated user
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
+    const supabase = createClient();
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // Fetch user preferences
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select()
-      .eq('user_id', session.user.id)
+    const { data: preferences, error } = await supabase
+      .from('podcast_preferences')
+      .select('*')
+      .eq('author_id', user.id)
       .single();
 
     if (error) {
       console.error('Error fetching preferences:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch preferences' },
-        { status: 500 }
-      );
+      return new NextResponse('Error fetching preferences', { status: 500 });
     }
 
-    return NextResponse.json(data || null);
+    return NextResponse.json(preferences);
   } catch (error) {
-    console.error('Error in preferences API:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error in preferences route:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = createClient();
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    const preferences = await request.json();
+
+    const { error } = await supabase.from('podcast_preferences').upsert({
+      author_id: user.id,
+      ...preferences,
+      updated_at: new Date().toISOString()
+    });
+
+    if (error) {
+      console.error('Error saving preferences:', error);
+      return new NextResponse('Error saving preferences', { status: 500 });
+    }
+
+    return new NextResponse('Preferences updated successfully', {
+      status: 200
+    });
+  } catch (error) {
+    console.error('Error in preferences route:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

@@ -115,34 +115,27 @@ export interface NotificationService {
 }
 
 /**
- * Activity related types
+ * Message related types
  */
-export interface ActivityService {
-  /**
-   * Fetches recent activities for an author
-   * @param authorId - The ID of the author
-   * @param limit - Maximum number of activities to return
-   */
-  getRecentActivities(
-    authorId: string,
-    limit?: number
-  ): Promise<ApiResponse<Database['public']['Tables']['activities']['Row'][]>>;
+export type MessageType = 'email' | 'notification' | 'ticket' | 'system';
+export type MessageStatus = 'unread' | 'read' | 'archived';
 
-  createActivity(
-    data: Database['public']['Tables']['activities']['Insert']
-  ): Promise<ApiResponse<Database['public']['Tables']['activities']['Row']>>;
-
-  getGroupedActivities(
-    authorId: string,
-    days?: number
-  ): Promise<
-    ApiResponse<
-      {
-        date: string;
-        activities: Database['public']['Tables']['activities']['Row'][];
-      }[]
-    >
-  >;
+export interface Message {
+  id: string;
+  user_id: string;
+  type: MessageType;
+  subject?: string;
+  content: string;
+  metadata?: {
+    ticket_id?: string;
+    sender_id?: string;
+    sender_type?: 'user' | 'staff';
+    priority?: 'low' | 'medium' | 'high';
+    [key: string]: any;
+  };
+  status: MessageStatus;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -152,7 +145,6 @@ export interface DashboardService {
   matches: MatchService;
   interviews: InterviewService;
   notifications: NotificationService;
-  activities: ActivityService;
 
   /**
    * Fetches dashboard statistics for an author

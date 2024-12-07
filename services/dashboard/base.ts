@@ -6,13 +6,11 @@ import type {
   MatchService,
   InterviewService,
   NotificationService,
-  ActivityService,
   ApiResponse
 } from '@/types/services';
 import { MatchServiceImpl } from './match';
 import { InterviewServiceImpl } from './interview';
 import { NotificationServiceImpl } from './notification';
-import { ActivityServiceImpl } from './activity';
 
 type Stats = {
   author_id: string;
@@ -34,7 +32,6 @@ export class BaseDashboardService implements DashboardService {
   public readonly matches: MatchService;
   public readonly interviews: InterviewService;
   public readonly notifications: NotificationService;
-  public readonly activities: ActivityService;
 
   constructor() {
     this.supabase = createClient();
@@ -42,7 +39,6 @@ export class BaseDashboardService implements DashboardService {
     this.matches = new MatchServiceImpl(this.supabase);
     this.interviews = new InterviewServiceImpl(this.supabase);
     this.notifications = new NotificationServiceImpl(this.supabase);
-    this.activities = new ActivityServiceImpl(this.supabase);
   }
 
   /**
