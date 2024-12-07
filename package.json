@@ -21,7 +21,8 @@
     "supabase:push": "npx supabase db push",
     "supabase:pull": "npx supabase db pull",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:matching": "ts-node scripts/test-matching.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
@@ -88,6 +89,7 @@
     "@vitest/coverage-v8": "^2.1.5",
     "@vitest/runner": "^2.1.5",
     "autoprefixer": "^10.4.19",
+    "dotenv": "^16.4.7",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.1.0",
     "eslint-config-prettier": "^9.1.0",

@@ -1,41 +1,72 @@
 'use client';
 
 import { User } from '@supabase/supabase-js';
-import { MatchList } from './MatchList';
-import { DashboardProvider } from '@/contexts/dashboard/DashboardContext';
+import { RecentMatches } from '@/components/dashboard/RecentMatches';
+import { getRecentMatches, generateMatchesForAuthor } from '@/services/matches';
+import Button from '@/components/ui/Button';
+import { useEffect, useState } from 'react';
+import type { PodcastMatch } from '@/types/matching';
 
 interface DashboardContentProps {
   user: User;
 }
 
 export function DashboardContent({ user }: DashboardContentProps) {
-  // Extract first name from user metadata or email
-  const firstName =
-    user.user_metadata?.first_name || user.email?.split('@')[0] || 'there';
+  const [matches, setMatches] = useState<PodcastMatch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMatches = async () => {
+      try {
+        let currentMatches = await getRecentMatches();
+        if (!currentMatches.length && user) {
+          await generateMatchesForAuthor(user.id);
+          currentMatches = await getRecentMatches();
+        }
+        setMatches(currentMatches);
+      } catch (error) {
+        console.error('Error loading matches:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMatches();
+  }, [user]);
+
+  const handleGenerateMatches = async () => {
+    try {
+      setIsLoading(true);
+      await generateMatchesForAuthor(user.id);
+      const newMatches = await getRecentMatches();
+      setMatches(newMatches);
+    } catch (error) {
+      console.error('Error generating matches:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <DashboardProvider>
-      <div className="min-h-screen bg-gradient-to-b from-zinc-900 to-zinc-950">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          {/* Add padding for navbar */}
-          <div className="pt-24 pb-12">
-            {/* Header Section */}
-            <div className="mb-12">
-              <h1 className="text-3xl font-bold tracking-tight text-white">
-                Welcome back, {firstName}
-              </h1>
-              <p className="mt-3 text-lg text-zinc-400">
-                Here are your latest podcast matches
-              </p>
-            </div>
-
-            {/* Main Content */}
-            <div>
-              <MatchList limit={5} />
-            </div>
-          </div>
-        </div>
+    <div className="container max-w-6xl py-8 space-y-8">
+      <div>
+        <h1 className="text-4xl font-bold">
+          Welcome back, {user?.email?.split('@')[0] || 'Guest'}
+        </h1>
+        <p className="text-xl text-muted-foreground mt-2">
+          Here are your latest podcast matches
+        </p>
       </div>
-    </DashboardProvider>
+
+      <Button onClick={handleGenerateMatches} disabled={isLoading}>
+        {isLoading ? 'Loading...' : 'Generate New Matches'}
+      </Button>
+
+      {isLoading ? (
+        <div className="text-center">Loading matches...</div>
+      ) : (
+        <RecentMatches matches={matches} />
+      )}
+    </div>
   );
 }

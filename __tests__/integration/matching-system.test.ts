@@ -4,11 +4,9 @@ import { MatchMaker } from '@/services/match-maker';
 import { CompatibilityService } from '@/services/compatibility-service';
 import { MatchResultsProcessor } from '@/services/match-results-processor';
 import { vi, describe, beforeEach, it, expect } from 'vitest';
-import { performance } from 'perf_hooks';
-import { TestHelpers } from '../utils/test-helpers';
-import { AuthorAnalysis, ExpertiseLevel } from '@/types/author';
-import { PodcastMatch } from '@/types/matching';
-import { DetailedMatchResult } from '@/types/match-results';
+import { AuthorAnalysis, ExpertiseLevel } from '../../types/author';
+import type { PodcastMatch } from '../../types/matching';
+import type { DetailedMatchResult } from '../../types/match-results';
 
 // Mock environment variables
 vi.mock('@/utils/supabase/client', () => ({

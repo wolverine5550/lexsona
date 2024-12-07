@@ -97,7 +97,7 @@ export class PodcastMatchingService {
       overallScore,
       confidence,
       breakdown,
-      matchReasons
+      suggestedTopics: podcast.mainTopics
     };
   }
 

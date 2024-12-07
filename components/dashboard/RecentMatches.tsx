@@ -1,48 +1,69 @@
-interface PodcastMatch {
-  id: string;
-  podcastName: string;
-  hostName: string;
-  matchScore: number;
-  date: string;
+import { PodcastMatch } from '@/types/matching';
+import { Card } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import { UserIcon, StarIcon, ClockIcon } from '@heroicons/react/24/outline';
+
+interface RecentMatchesProps {
+  matches: PodcastMatch[];
 }
 
-export function RecentMatches() {
-  // This will be replaced with real data later
-  const matches: PodcastMatch[] = [
-    {
-      id: '1',
-      podcastName: 'The Author Hour',
-      hostName: 'Sarah Johnson',
-      matchScore: 95,
-      date: '2024-01-15'
-    },
-    {
-      id: '2',
-      podcastName: 'Book Talk Daily',
-      hostName: 'Mike Smith',
-      matchScore: 88,
-      date: '2024-01-14'
-    }
-  ];
-
+export function RecentMatches({ matches }: RecentMatchesProps) {
   return (
-    <div className="divide-y divide-zinc-800 rounded-lg bg-zinc-900">
-      {matches.map((match) => (
-        <div key={match.id} className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-white">{match.podcastName}</h3>
-              <p className="text-sm text-zinc-400">Host: {match.hostName}</p>
-            </div>
-            <div className="text-right">
-              <span className="rounded-full bg-blue-500/10 px-2 py-1 text-sm font-medium text-blue-500">
-                {match.matchScore}% Match
-              </span>
-              <p className="mt-1 text-xs text-zinc-500">{match.date}</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold">Recent Matches</h2>
+
+      {matches.length === 0 ? (
+        <p className="text-muted-foreground text-lg">No matches found</p>
+      ) : (
+        <div className="grid gap-6">
+          {matches.map((match) => (
+            <Card key={match.podcastId} className="p-6">
+              <div className="flex justify-between items-start">
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-semibold">
+                    {match.podcast.title}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {match.podcast.category}
+                  </p>
+
+                  <p className="text-lg">{match.podcast.description}</p>
+
+                  <div className="flex gap-4 text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <UserIcon className="w-5 h-5" />
+                      <span>{match.podcast.listeners} listeners</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <StarIcon className="w-5 h-5" />
+                      <span>{match.podcast.rating}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <ClockIcon className="w-5 h-5" />
+                      <span>{match.podcast.frequency}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="text-lg font-semibold px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                    {Math.round(match.overallScore * 100)}% Match
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-4">
+                <Button className="flex-1" variant="default">
+                  Send Pitch
+                </Button>
+                <Button className="flex-1" variant="outline">
+                  View Details
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

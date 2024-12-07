@@ -3,10 +3,8 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { setupCommonMocks } from './__tests__/setup/commonMocks';
 
-// Set up common mocks for all tests
-beforeAll(() => {
-  setupCommonMocks();
-});
+// Set up common mocks based on environment
+setupCommonMocks();
 
 // Clean up after each test
 afterEach(() => {

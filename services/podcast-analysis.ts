@@ -1,4 +1,4 @@
-import { openaiClient } from '@/utils/openai';
+import { getOpenAIClient } from '@/utils/openai';
 import { createClient } from '@/utils/supabase/client';
 import type {
   PodcastAnalysis,
@@ -35,7 +35,7 @@ export class PodcastAnalysisService {
         6. Language complexity`;
 
       // Get OpenAI analysis
-      const analysis = await openaiClient.processChatCompletion([
+      const analysis = await getOpenAIClient().processChatCompletion([
         { role: 'user', content: prompt }
       ]);
 
@@ -82,7 +82,7 @@ export class PodcastAnalysisService {
         3. Guest experts (if any)
         4. Content type/format`;
 
-      const analysis = await openaiClient.processChatCompletion([
+      const analysis = await getOpenAIClient().processChatCompletion([
         { role: 'user', content: prompt }
       ]);
 

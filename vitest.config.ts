@@ -9,7 +9,10 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environmentMatchGlobs: [
+      ['**/__tests__/integration/api-*.test.ts', 'node'],
+      ['**/__tests__/**/*', 'jsdom']
+    ],
     globals: true,
     setupFiles: './vitest.setup.ts',
     testTimeout: 10000,

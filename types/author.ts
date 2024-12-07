@@ -25,7 +25,7 @@ export type AuthorInterview = {
   episodeUrl: string;
 };
 
-export type Author = {
+export interface Author {
   id: string;
   name: string;
   avatar: string;
@@ -38,4 +38,38 @@ export type Author = {
   followers: number;
   following: number;
   totalListens: number;
-};
+}
+
+export enum ExpertiseLevel {
+  Beginner = 'beginner',
+  Intermediate = 'intermediate',
+  Expert = 'expert'
+}
+
+export interface AuthorAnalysis {
+  topics: string[];
+  expertiseLevel: ExpertiseLevel;
+  communicationStyle: string;
+  keyPoints: string[];
+  confidence: number;
+}
+
+export interface AuthorProfile {
+  name: string;
+  bio: string;
+  books: AuthorBook[];
+}
+
+export interface AuthorBook {
+  title: string;
+  description: string;
+  genre: string[];
+  targetAudience: string[];
+}
+
+export enum CommunicationStyle {
+  Casual = 'casual',
+  Professional = 'professional',
+  Academic = 'academic',
+  Storyteller = 'storyteller'
+}

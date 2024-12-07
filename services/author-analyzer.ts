@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 import {
   AuthorProfile,
   AuthorAnalysis,
@@ -8,26 +8,35 @@ import {
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Initialize Supabase client for database operations
- * Uses environment variables for configuration
- */
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-/**
- * Initialize OpenAI client for AI analysis
- */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-/**
  * AuthorAnalyzer class handles the analysis of author profiles using AI
  * and manages caching of results for performance optimization
  */
 export class AuthorAnalyzer {
+  private static openai: OpenAI;
+  private static supabase: any;
+
+  private static getOpenAI() {
+    if (!this.openai) {
+      if (typeof window !== 'undefined') {
+        throw new Error('OpenAI client cannot be used in browser');
+      }
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+    }
+    return this.openai;
+  }
+
+  private static getSupabase() {
+    if (!this.supabase) {
+      this.supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+    }
+    return this.supabase;
+  }
+
   // Cache duration set to 7 days to balance freshness and API usage
   private static readonly CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
 
@@ -73,6 +82,7 @@ export class AuthorAnalyzer {
   private static async analyzeWithAI(
     author: AuthorProfile
   ): Promise<AuthorAnalysis> {
+    const openai = this.getOpenAI();
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
@@ -102,6 +112,8 @@ export class AuthorAnalyzer {
    * @throws Error if author is not found
    */
   static async analyze(authorId: string): Promise<AuthorAnalysis> {
+    const openai = this.getOpenAI();
+    const supabase = this.getSupabase();
     // Check cache first
     const { data: cachedAnalysis } = await supabase
       .from('author_analysis')
@@ -146,6 +158,7 @@ export class AuthorAnalyzer {
     authorId: string,
     analysis: AuthorAnalysis
   ): Promise<void> {
+    const supabase = this.getSupabase();
     await supabase.from('author_analysis').upsert({
       author_id: authorId,
       topics: analysis.topics,

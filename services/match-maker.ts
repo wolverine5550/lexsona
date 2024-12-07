@@ -107,7 +107,7 @@ export class MatchMaker {
       podcast.guestRequirements.minimumExpertise
     );
     const styleScore = this.calculateStyleScore(
-      author.communicationStyle,
+      author.communicationStyle as CommunicationStyle,
       podcast.hostStyle
     );
 

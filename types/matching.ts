@@ -35,8 +35,15 @@ export interface PodcastMatch {
   overallScore: number;
   confidence: number;
   breakdown: MatchFactors;
-  matchReasons?: string[];
-  suggestedTopics?: string[];
+  suggestedTopics: string[];
+  podcast: {
+    title: string;
+    category: string;
+    description: string;
+    listeners: number;
+    rating: number;
+    frequency: string;
+  };
 }
 
 /**

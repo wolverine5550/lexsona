@@ -1,44 +1,14 @@
 import { vi } from 'vitest';
 
+// Helper to check environment
+const isBrowser = typeof window !== 'undefined';
+
 // Mock ResizeObserver
-class MockResizeObserver {
-  callback: ResizeObserverCallback;
-  elements: Element[];
-
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
-    this.elements = [];
-  }
-
-  observe(target: Element) {
-    if (!this.elements.includes(target)) {
-      this.elements.push(target);
-      this.callback(
-        [
-          {
-            target,
-            contentRect: target.getBoundingClientRect(),
-            borderBoxSize: [{ blockSize: 0, inlineSize: 0 }],
-            contentBoxSize: [{ blockSize: 0, inlineSize: 0 }],
-            devicePixelContentBoxSize: [{ blockSize: 0, inlineSize: 0 }]
-          } as ResizeObserverEntry
-        ],
-        this
-      );
-    }
-  }
-
-  unobserve(target: Element) {
-    const index = this.elements.indexOf(target);
-    if (index > -1) {
-      this.elements.splice(index, 1);
-    }
-  }
-
-  disconnect() {
-    this.elements = [];
-  }
-}
+const MockResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn()
+}));
 
 // Define mock channel factory
 const createMockChannel = () => ({
@@ -54,10 +24,9 @@ const createMockClient = () => ({
       eq: () => ({ data: null, error: null }),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      single: vi.fn().mockReturnThis(),
-      upsert: vi.fn().mockReturnThis(),
-      then: vi.fn().mockResolvedValue({ data: [], error: null })
-    })
+      single: vi.fn().mockResolvedValue({ data: null, error: null })
+    }),
+    upsert: vi.fn().mockResolvedValue({ data: null, error: null })
   }),
   auth: {
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
@@ -66,7 +35,39 @@ const createMockClient = () => ({
   channel: vi.fn().mockReturnValue(createMockChannel())
 });
 
-export const setupCommonMocks = () => {
+export function setupCommonMocks() {
+  // Browser-specific mocks
+  if (isBrowser) {
+    window.ResizeObserver = MockResizeObserver as any;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+  }
+
+  // Node-specific mocks
+  if (!isBrowser) {
+    global.ResizeObserver = MockResizeObserver as any;
+  }
+
+  // Common mocks for both environments
+  vi.mock('next/navigation', () => ({
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      prefetch: vi.fn()
+    }),
+    useSearchParams: () => ({
+      get: vi.fn()
+    })
+  }));
+
   // Mock environment variables
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'mock-anon-key';
@@ -119,26 +120,6 @@ export const setupCommonMocks = () => {
       };
     }
   }));
-
-  // Mock ResizeObserver
-  global.ResizeObserver = MockResizeObserver as any;
-  window.ResizeObserver = MockResizeObserver as any;
-
-  // Mock window.matchMedia
-  global.window.matchMedia = function (query: string) {
-    return {
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: function () {},
-      removeListener: function () {},
-      addEventListener: function () {},
-      removeEventListener: function () {},
-      dispatchEvent: function () {
-        return false;
-      }
-    };
-  };
 
   // Mock Recharts
   vi.mock('recharts', () => {
@@ -198,7 +179,7 @@ export const setupCommonMocks = () => {
       Legend: createMockComponent('legend')
     };
   });
-};
+}
 
 // Add mock author data for tests
 export const mockAuthor = {

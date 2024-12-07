@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 import {
   PodcastBase,
   PodcastAnalysis,
@@ -20,15 +20,19 @@ const supabase = createClient(
 /**
  * Initialize OpenAI client for AI analysis
  */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-/**
- * PodcastAnalyzer class handles enhanced analysis of podcasts
- * including host style, audience level, and topic depth assessment
- */
 export class PodcastAnalyzer {
+  private static openai: OpenAI;
+
+  private static getOpenAI() {
+    if (!this.openai) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        dangerouslyAllowBrowser: true
+      });
+    }
+    return this.openai;
+  }
+
   private static readonly CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 
   /**
@@ -65,6 +69,7 @@ export class PodcastAnalyzer {
   private static async analyzeWithAI(
     podcast: PodcastBase
   ): Promise<PodcastAnalysis> {
+    const openai = this.getOpenAI();
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [

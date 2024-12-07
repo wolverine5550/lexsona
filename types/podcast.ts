@@ -106,12 +106,11 @@ export interface PodcastBase {
   title: string;
   description: string;
   publisher: string;
-  language: string;
   categories: string[];
-  totalEpisodes: number;
   averageEpisodeLength: number;
-  website?: string;
-  listenNotesUrl: string;
+  totalEpisodes: number;
+  language: string;
+  type: string;
 }
 
 /**
