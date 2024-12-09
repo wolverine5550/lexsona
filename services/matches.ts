@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/client';
 import type { PodcastMatch } from '@/types/matching';
 import { MatchMaker } from './match-maker';
 import { PodcastAnalyzer } from './podcast-analyzer';
+import { isPremiumUser, getMatchLimit } from '@/utils/subscription';
 
 interface PodcastQueryResult {
   id: string;
@@ -20,8 +21,16 @@ interface PodcastQueryResult {
   };
 }
 
-export async function getRecentMatches(): Promise<PodcastMatch[]> {
+export async function getRecentMatches(userId: string): Promise<{
+  matches: PodcastMatch[];
+  isPremium: boolean;
+  limit: number;
+}> {
   const supabase = createClient();
+
+  // Check subscription status
+  const isPremium = await isPremiumUser(supabase, userId);
+  const limit = getMatchLimit(isPremium);
 
   const { data: matches, error } = await supabase
     .from('matches')
@@ -46,13 +55,14 @@ export async function getRecentMatches(): Promise<PodcastMatch[]> {
       )
     `
     )
+    .eq('author_id', userId)
     .order('created_at', { ascending: false })
-    .limit(5);
+    .limit(isPremium ? 100 : limit);
 
   if (error) throw error;
 
   // Transform the data to match our PodcastMatch type
-  return (
+  const transformedMatches =
     matches?.map((match: any) => ({
       id: match.id,
       podcastId: match.podcast_id,
@@ -84,8 +94,13 @@ export async function getRecentMatches(): Promise<PodcastMatch[]> {
           : 0,
         frequency: match.podcasts?.total_episodes > 100 ? 'weekly' : 'monthly'
       }
-    })) || []
-  );
+    })) || [];
+
+  return {
+    matches: transformedMatches,
+    isPremium,
+    limit
+  };
 }
 
 async function checkExistingMatches() {
