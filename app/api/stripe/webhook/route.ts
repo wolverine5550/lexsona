@@ -1,127 +1,104 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import Stripe from 'stripe';
+import { stripe } from '@/utils/stripe';
+import { createClient } from '@/utils/supabase/server';
+import { toDateTime } from '@/utils/stripe/helpers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-async function processSubscriptionEvent(event: {
-  type: string;
-  customerId: string;
-  subscriptionId: string;
-  status: string;
-  priceId: string;
-}) {
-  console.log('Processing subscription event:', event);
-
-  try {
-    // Create Supabase client with service role
-    const supabase = createRouteHandlerClient(
-      { cookies },
-      {
-        supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        options: {
-          db: { schema: 'public' }
-        }
-      }
-    );
-
-    // Get customer record
-    const { data: customers, error: customerError } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('stripe_customer_id', event.customerId);
-
-    if (customerError) {
-      console.error('Error fetching customer:', customerError);
-      throw customerError;
-    }
-
-    if (!customers || customers.length === 0) {
-      console.error(
-        'No customer found for Stripe customer ID:',
-        event.customerId
-      );
-      throw new Error('Customer not found');
-    }
-
-    const userId = customers[0].id;
-
-    // Update subscription status
-    const { error: subscriptionError } = await supabase
-      .from('subscriptions')
-      .upsert(
-        {
-          id: event.subscriptionId,
-          user_id: userId,
-          status: event.status,
-          price_id: event.priceId,
-          quantity: 1,
-          cancel_at_period_end: false,
-          created: new Date().toISOString(),
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          ended_at: null,
-          cancel_at: null,
-          canceled_at: null,
-          trial_start: null,
-          trial_end: null
-        },
-        {
-          onConflict: 'id'
-        }
-      );
-
-    if (subscriptionError) {
-      console.error('Error updating subscription:', subscriptionError);
-      throw subscriptionError;
-    }
-
-    console.log('Successfully processed subscription event');
-  } catch (error) {
-    console.error('Error processing subscription event:', error);
-    throw error;
-  }
-}
+const relevantEvents = new Set([
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted'
+]);
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get('stripe-signature')!;
+  const sig = headers().get('Stripe-Signature');
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  let event: Stripe.Event;
 
   try {
-    const event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      webhookSecret
-    );
-
-    console.log('Processing webhook event:', {
-      type: event.type,
-      id: event.id
-    });
-
-    // Handle subscription-related events
-    if (event.type.startsWith('customer.subscription.')) {
-      const subscription = event.data.object as Stripe.Subscription;
-      await processSubscriptionEvent({
-        type: event.type,
-        customerId: subscription.customer as string,
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        priceId: (subscription.items.data[0].price as Stripe.Price).id
-      });
+    if (!sig || !webhookSecret) {
+      console.error('Missing Stripe webhook secret or signature');
+      return new NextResponse('Webhook Error', { status: 400 });
     }
-
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+  } catch (error: any) {
+    console.error(`❌ Error message: ${error.message}`);
+    return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
+
+  if (relevantEvents.has(event.type)) {
+    try {
+      const supabase = createClient();
+
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          const subscription = event.data.object as Stripe.Subscription;
+          const customerId = subscription.customer as string;
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('stripe_customer_id', customerId)
+            .single();
+
+          if (!customer) {
+            console.error('No customer found with Stripe ID:', customerId);
+            return new NextResponse('Customer not found', { status: 404 });
+          }
+
+          const subscriptionData = {
+            id: subscription.id,
+            user_id: customer.id,
+            metadata: subscription.metadata,
+            status: subscription.status,
+            price_id: subscription.items.data[0].price.id,
+            quantity: subscription.items.data[0].quantity,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            cancel_at: subscription.cancel_at
+              ? toDateTime(subscription.cancel_at).toISOString()
+              : null,
+            canceled_at: subscription.canceled_at
+              ? toDateTime(subscription.canceled_at).toISOString()
+              : null,
+            current_period_start: toDateTime(
+              subscription.current_period_start
+            ).toISOString(),
+            current_period_end: toDateTime(
+              subscription.current_period_end
+            ).toISOString(),
+            created: toDateTime(subscription.created).toISOString(),
+            ended_at: subscription.ended_at
+              ? toDateTime(subscription.ended_at).toISOString()
+              : null,
+            trial_start: subscription.trial_start
+              ? toDateTime(subscription.trial_start).toISOString()
+              : null,
+            trial_end: subscription.trial_end
+              ? toDateTime(subscription.trial_end).toISOString()
+              : null
+          };
+
+          const { error } = await supabase
+            .from('subscriptions')
+            .upsert(subscriptionData);
+
+          if (error) {
+            console.error('Error updating subscription:', error);
+            return new NextResponse('Error updating subscription', {
+              status: 500
+            });
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error processing webhook:', error);
+      return new NextResponse('Webhook handler failed', { status: 400 });
+    }
+  }
+
+  return NextResponse.json({ received: true });
 }

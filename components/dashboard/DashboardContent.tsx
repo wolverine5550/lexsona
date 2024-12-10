@@ -28,7 +28,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
         // Check subscription status
         const premium = await isPremiumUser(supabase, user.id);
         setIsPremium(premium);
-        setMatchLimit(getMatchLimit(premium));
+        const limit = await getMatchLimit(supabase, user.id, premium);
+        setMatchLimit(limit);
 
         // Load matches
         const { matches: currentMatches } = await getRecentMatches(user.id);
@@ -70,14 +71,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         <h1 className="text-4xl font-bold">
           Welcome back, {user?.email?.split('@')[0] || 'Guest'}
         </h1>
-        <p className="text-xl text-muted-foreground mt-2">
-          Here are your latest podcast matches
-        </p>
       </div>
-
-      <Button onClick={handleGenerateMatches} disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Generate New Matches'}
-      </Button>
 
       {isLoading ? (
         <div className="text-center">Loading matches...</div>

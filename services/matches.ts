@@ -3,6 +3,7 @@ import type { PodcastMatch } from '@/types/matching';
 import { MatchMaker } from './match-maker';
 import { PodcastAnalyzer } from './podcast-analyzer';
 import { isPremiumUser, getMatchLimit } from '@/utils/subscription';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 interface PodcastQueryResult {
   id: string;
@@ -21,86 +22,100 @@ interface PodcastQueryResult {
   };
 }
 
-export async function getRecentMatches(userId: string): Promise<{
-  matches: PodcastMatch[];
-  isPremium: boolean;
-  limit: number;
-}> {
+const BASIC_TIER_MONTHLY_LIMIT = 10;
+const MATCHES_PER_DAY_BASIC = 3;
+
+export async function getRecentMatches(userId: string) {
   const supabase = createClient();
 
-  // Check subscription status
-  const isPremium = await isPremiumUser(supabase, userId);
-  const limit = getMatchLimit(isPremium);
+  try {
+    // Check subscription status
+    const isPremium = await isPremiumUser(supabase, userId);
+    const limit = await getMatchLimit(supabase, userId, isPremium);
 
-  const { data: matches, error } = await supabase
-    .from('matches')
-    .select(
-      `
-      id,
-      author_id,
-      podcast_id,
-      match_score,
-      match_reason,
-      status,
-      created_at,
-      podcasts (
+    // Get count of all matches for this user
+    const { count: totalMatches } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+      .eq('author_id', userId);
+
+    // Get matches with limit
+    const { data: matches, error } = await supabase
+      .from('matches')
+      .select(
+        `
         id,
-        title,
-        description,
-        publisher,
-        categories,
-        total_episodes,
-        listen_score,
-        image
+        author_id,
+        podcast_id,
+        match_score,
+        match_reason,
+        status,
+        created_at,
+        podcasts (
+          id,
+          title,
+          description,
+          publisher,
+          categories,
+          total_episodes,
+          listen_score,
+          image
+        )
+      `
       )
-    `
-    )
-    .eq('author_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(isPremium ? 100 : limit);
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-  if (error) throw error;
+    if (error) throw error;
 
-  // Transform the data to match our PodcastMatch type
-  const transformedMatches =
-    matches?.map((match: any) => ({
-      id: match.id,
-      podcastId: match.podcast_id,
-      overallScore: match.match_score,
-      confidence: 0.8, // Default confidence score
-      breakdown: {
-        topicScore: 0.8,
-        expertiseScore: 0.8,
-        styleScore: 0.8,
-        audienceScore: 0.8,
-        formatScore: 0.8,
-        lengthScore: 0.8,
-        complexityScore: 0.8,
-        qualityScore: 0.8,
-        explanation: match.match_reason || []
-      },
-      suggestedTopics: Array.isArray(match.podcasts?.categories)
-        ? match.podcasts.categories
-        : [],
-      podcast: {
-        title: match.podcasts?.title || '',
-        description: match.podcasts?.description || '',
-        category: Array.isArray(match.podcasts?.categories)
-          ? match.podcasts.categories[0]
-          : 'Uncategorized',
-        listeners: match.podcasts?.listen_score || 0,
-        rating: match.podcasts?.listen_score
-          ? match.podcasts.listen_score / 20
-          : 0,
-        frequency: match.podcasts?.total_episodes > 100 ? 'weekly' : 'monthly'
-      }
-    })) || [];
+    // Transform the data to match our PodcastMatch type
+    const transformedMatches =
+      matches?.map((match: any) => ({
+        id: match.id,
+        podcastId: match.podcast_id,
+        overallScore: match.match_score,
+        confidence: 0.8, // Default confidence score
+        breakdown: {
+          topicScore: 0.8,
+          expertiseScore: 0.8,
+          styleScore: 0.8,
+          audienceScore: 0.8,
+          formatScore: 0.8,
+          lengthScore: 0.8,
+          complexityScore: 0.8,
+          qualityScore: 0.8,
+          explanation: match.match_reason || []
+        },
+        suggestedTopics: Array.isArray(match.podcasts?.categories)
+          ? match.podcasts.categories
+          : [],
+        podcast: {
+          title: match.podcasts?.title || '',
+          description: match.podcasts?.description || '',
+          category: Array.isArray(match.podcasts?.categories)
+            ? match.podcasts.categories[0]
+            : 'Uncategorized',
+          listeners: match.podcasts?.listen_score || 0,
+          rating: match.podcasts?.listen_score
+            ? match.podcasts.listen_score / 20
+            : 0,
+          frequency: match.podcasts?.total_episodes > 100 ? 'weekly' : 'monthly'
+        }
+      })) || [];
 
-  return {
-    matches: transformedMatches,
-    isPremium,
-    limit
-  };
+    // Calculate remaining matches
+    const remainingMatches = Math.max(0, limit - (totalMatches || 0));
+
+    return {
+      matches: transformedMatches,
+      isPremium,
+      limit: remainingMatches
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    throw error;
+  }
 }
 
 async function checkExistingMatches() {
@@ -135,26 +150,65 @@ export async function generateMatchesForAuthor(userId: string): Promise<void> {
   console.log('Starting generateMatchesForAuthor for user:', userId);
 
   try {
+    // Check subscription status and limits
+    const isPremium = await isPremiumUser(supabase, userId);
+    let availableMatches = 10; // Default to max for premium users
+
+    if (!isPremium) {
+      // Check monthly limit
+      const startDate = startOfMonth(new Date());
+      const endDate = endOfMonth(new Date());
+      const { count: monthlyMatchCount } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('author_id', userId)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      // Check daily limit
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { count: dailyMatchCount } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('author_id', userId)
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString());
+
+      // Calculate available matches
+      const remainingMonthly =
+        BASIC_TIER_MONTHLY_LIMIT - (monthlyMatchCount || 0);
+      const remainingDaily = MATCHES_PER_DAY_BASIC - (dailyMatchCount || 0);
+      availableMatches = Math.min(remainingMonthly, remainingDaily);
+
+      if (availableMatches <= 0) {
+        console.log('Match limit reached for basic tier user');
+        return;
+      }
+    }
+
+    // First, check existing matches for this user
+    const { data: existingMatches } = await supabase
+      .from('matches')
+      .select('podcast_id')
+      .eq('author_id', userId);
+
+    console.log('Existing matches:', existingMatches);
+
+    // Get the IDs of already matched podcasts
+    const matchedPodcastIds = existingMatches?.map((m) => m.podcast_id) || [];
+    console.log('Already matched podcast IDs:', matchedPodcastIds);
+
     // 1. Get potential podcasts that haven't been matched yet
     console.log('Fetching potential podcasts...');
     const { data: podcasts, error: podcastError } = await supabase
       .from('podcasts')
-      .select(
-        `
-        id,
-        title,
-        description,
-        publisher,
-        categories,
-        total_episodes,
-        listen_score,
-        image
-      `
-      )
-      .limit(10)
-      .not('id', 'in', (select: any) => {
-        select.from('matches').select('podcast_id').eq('author_id', userId);
-      });
+      .select('*')
+      .not('id', 'in', matchedPodcastIds)
+      .limit(isPremium ? 10 : Math.min(3, availableMatches));
 
     console.log('Podcasts query result:', { podcasts, error: podcastError });
 
@@ -171,48 +225,30 @@ export async function generateMatchesForAuthor(userId: string): Promise<void> {
 
     // 2. Generate matches
     console.log('Generating matches...');
-    const matches = podcasts.map((podcast) => {
-      try {
-        console.log('Generating match for podcast:', podcast.id, podcast.title);
-        const match = {
-          author_id: userId,
-          podcast_id: podcast.id,
-          match_score: 0.85, // Fixed score for testing
-          match_reason: ['Topic alignment', 'Audience size match'],
-          status: 'new',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_saved: false
-        };
-        console.log('Generated match:', match);
-        return match;
-      } catch (error) {
-        console.error(
-          `Error generating match for podcast ${podcast.id}:`,
-          error
-        );
-        return null;
-      }
-    });
+    const matches = podcasts.map((podcast) => ({
+      author_id: userId,
+      podcast_id: podcast.id,
+      match_score: 0.85, // Fixed score for testing
+      match_reason: ['Topic alignment', 'Audience size match'],
+      status: 'new',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_saved: false
+    }));
 
-    // Filter out any failed matches
-    const validMatches = matches.filter(
-      (match): match is NonNullable<typeof match> => match !== null
-    );
-
-    if (validMatches.length === 0) {
-      console.log('No valid matches were generated');
+    if (matches.length === 0) {
+      console.log('No matches were generated');
       return;
     }
 
-    console.log('Generated valid matches:', validMatches.length);
-    console.log('First match example:', validMatches[0]);
+    console.log('Generated matches:', matches.length);
+    console.log('First match example:', matches[0]);
 
     // 3. Insert matches into database
     console.log('Inserting matches...');
     const { data: insertedData, error: insertError } = await supabase
       .from('matches')
-      .upsert(validMatches)
+      .upsert(matches)
       .select();
 
     if (insertError) {
