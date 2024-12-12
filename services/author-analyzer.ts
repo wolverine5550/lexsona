@@ -45,9 +45,29 @@ export class AuthorAnalyzer {
    * @param author - The author profile to analyze
    * @returns A formatted string prompt for AI analysis
    */
-  private static generateAnalysisPrompt(author: AuthorProfile): string {
+  private static async generateAnalysisPrompt(author: AuthorProfile): string {
+    const supabase = this.getSupabase();
+
+    // Get podcast preferences
+    const { data: preferences } = await supabase
+      .from('podcast_preferences')
+      .select(
+        `
+        example_shows,
+        interview_topics,
+        target_audiences,
+        preferred_episode_length,
+        preferred_formats,
+        content_restrictions,
+        additional_notes,
+        style_preferences
+      `
+      )
+      .eq('author_id', author.id)
+      .single();
+
     return `
-      Please analyze this author's profile and their work:
+      Please analyze this author's profile, work, and podcast preferences:
       
       Author Name: ${author.name}
       Bio: ${author.bio}
@@ -64,11 +84,29 @@ export class AuthorAnalyzer {
         )
         .join('\n')}
       
+      Podcast Preferences:
+      - Example Shows They Like: ${preferences?.example_shows?.join(', ') || 'Not specified'}
+      - Preferred Interview Topics: ${preferences?.interview_topics?.join(', ') || 'Not specified'}
+      - Target Audiences: ${preferences?.target_audiences?.join(', ') || 'Not specified'}
+      - Preferred Episode Length: ${preferences?.preferred_episode_length || 'Not specified'}
+      - Preferred Formats: ${preferences?.preferred_formats?.join(', ') || 'Not specified'}
+      - Content Restrictions: ${preferences?.content_restrictions || 'None'}
+      - Style Preferences: ${Object.entries(
+        preferences?.style_preferences || {}
+      )
+        .filter(([_, value]) => value)
+        .map(([key]) => key.replace('is', '').replace('Preferred', ''))
+        .join(', ')}
+      - Additional Notes: ${preferences?.additional_notes || 'None'}
+      
       Please provide a structured analysis including:
       1. Main topics and themes (list up to 5)
       2. Expertise level (beginner/intermediate/expert)
       3. Communication style (casual/professional/academic/storyteller)
       4. Key talking points (list up to 5)
+      5. Preferred podcast formats and styles
+      6. Target audience alignment
+      7. Content boundaries and restrictions
       
       Provide the response in JSON format.
     `;
@@ -83,6 +121,7 @@ export class AuthorAnalyzer {
     author: AuthorProfile
   ): Promise<AuthorAnalysis> {
     const openai = this.getOpenAI();
+    // Generate AI analysis of author's background
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
@@ -94,12 +133,14 @@ export class AuthorAnalyzer {
       temperature: 0.7
     });
 
+    // Parse results into structured analysis
     const result = JSON.parse(response.choices[0].message?.content || '{}');
 
     return {
+      authorId: author.id,
       topics: result.topics || [],
-      expertiseLevel: result.expertiseLevel as ExpertiseLevel,
-      communicationStyle: result.communicationStyle as CommunicationStyle,
+      expertiseLevel: result.expertiseLevel,
+      communicationStyle: result.communicationStyle,
       keyPoints: result.keyPoints || [],
       confidence: result.confidence || 0.8
     };
@@ -162,8 +203,8 @@ export class AuthorAnalyzer {
     await supabase.from('author_analysis').upsert({
       author_id: authorId,
       topics: analysis.topics,
-      expertise_level: analysis.expertiseLevel,
-      communication_style: analysis.communicationStyle,
+      expertise_level: analysis.expertiseLevel.toLowerCase(),
+      communication_style: analysis.communicationStyle.toLowerCase(),
       key_points: analysis.keyPoints,
       confidence: analysis.confidence,
       analyzed_at: new Date().toISOString()
@@ -177,6 +218,7 @@ export class AuthorAnalyzer {
    */
   private static formatCachedAnalysis(cachedData: any): AuthorAnalysis {
     return {
+      authorId: cachedData.author_id,
       topics: cachedData.topics,
       expertiseLevel: cachedData.expertise_level,
       communicationStyle: cachedData.communication_style,

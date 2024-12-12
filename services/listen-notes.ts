@@ -27,7 +27,6 @@ export class ListenNotesClient {
       }
     );
 
-    const data = await response.json();
-    return data.results || [];
+    return response.json();
   }
 }

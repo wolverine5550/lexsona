@@ -1,22 +1,29 @@
 'use client';
 
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { Card, CardHeader, CardContent } from './Card';
 
 interface Props {
   children: ReactNode;
+  fallback?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
+  error?: Error;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
+/**
+ * Error Boundary component to catch JavaScript errors anywhere in their child component tree
+ * Logs errors and displays a fallback UI instead of crashing the app
+ */
+export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false
   };
 
-  public static getDerivedStateFromError(_: Error): State {
-    return { hasError: true };
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -26,17 +33,26 @@ export default class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-4 text-center">
-          <h2 className="text-xl font-semibold text-red-500">
-            Something went wrong
-          </h2>
-          <button
-            className="mt-4 text-blue-500 hover:text-blue-400"
-            onClick={() => this.setState({ hasError: false })}
-          >
-            Try again
-          </button>
-        </div>
+        this.props.fallback || (
+          <Card className="w-full max-w-4xl mx-auto">
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-red-600">
+                Something went wrong
+              </h2>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600">
+                {this.state.error?.message || 'An unexpected error occurred'}
+              </p>
+              <button
+                onClick={() => this.setState({ hasError: false })}
+                className="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Try again
+              </button>
+            </CardContent>
+          </Card>
+        )
       );
     }
 

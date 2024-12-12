@@ -105,41 +105,22 @@ export class PodcastAnalyzer {
    */
   static async analyze(podcastId: string): Promise<EnhancedPodcast> {
     // Check cache first
-    const { data: cachedAnalysis } = await supabase
-      .from('podcast_analysis')
-      .select('*')
-      .eq('podcast_id', podcastId)
-      .single();
+    const cachedAnalysis = await checkCache(podcastId);
+    if (cachedAnalysis) return cachedAnalysis;
 
-    // Return cached analysis if fresh
-    if (
-      cachedAnalysis &&
-      new Date(cachedAnalysis.last_analyzed).getTime() >
-        Date.now() - this.CACHE_DURATION
-    ) {
-      return this.formatCachedAnalysis(cachedAnalysis);
-    }
-
-    // Fetch podcast base data
-    const { data: podcast } = await supabase
-      .from('podcasts')
-      .select('*')
-      .eq('id', podcastId)
-      .single();
-
-    if (!podcast) {
-      throw new Error('Podcast not found');
-    }
-
-    // Perform new analysis
+    // Analyze podcast content and style
     const analysis = await this.analyzeWithAI(podcast);
-
-    // Cache the results
-    await this.cacheAnalysis(analysis);
 
     return {
       ...podcast,
-      analysis
+      analysis: {
+        hostStyle: analysis.hostStyle,
+        audienceLevel: analysis.audienceLevel,
+        topicDepth: analysis.topicDepth,
+        guestRequirements: analysis.guestRequirements,
+        topicalFocus: analysis.topicalFocus,
+        confidence: analysis.confidence
+      }
     };
   }
 

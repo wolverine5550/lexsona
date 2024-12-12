@@ -30,10 +30,16 @@ export default function Navbar() {
                 Dashboard
               </Link>
               <Link
-                href="/account"
+                href="/settings/profile"
                 className="text-sm text-zinc-400 hover:text-white"
               >
-                Account
+                Profile
+              </Link>
+              <Link
+                href="/settings"
+                className="text-sm text-zinc-400 hover:text-white"
+              >
+                Settings
               </Link>
               <Link
                 href="/help"

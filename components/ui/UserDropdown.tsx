@@ -70,7 +70,16 @@ export function UserDropdown({ user, onSignOut }: UserDropdownProps) {
             </Link>
 
             <Link
-              href="/account"
+              href="/settings/profile"
+              className="flex items-center px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+              onClick={() => setIsOpen(false)}
+            >
+              <UserIcon className="mr-3 h-4 w-4" />
+              Profile
+            </Link>
+
+            <Link
+              href="/settings"
               className="flex items-center px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
               onClick={() => setIsOpen(false)}
             >

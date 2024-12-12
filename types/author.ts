@@ -47,14 +47,19 @@ export enum ExpertiseLevel {
 }
 
 export interface AuthorAnalysis {
+  authorId: string;
   topics: string[];
   expertiseLevel: ExpertiseLevel;
-  communicationStyle: string;
+  communicationStyle: CommunicationStyle;
   keyPoints: string[];
+  preferredFormats: string[];
+  targetAudience: string[];
+  contentBoundaries: string[];
   confidence: number;
 }
 
 export interface AuthorProfile {
+  id: string;
   name: string;
   bio: string;
   books: AuthorBook[];
@@ -72,4 +77,34 @@ export enum CommunicationStyle {
   Professional = 'professional',
   Academic = 'academic',
   Storyteller = 'storyteller'
+}
+
+/**
+ * Author onboarding data interface
+ */
+export interface AuthorOnboardingData {
+  name: string;
+  bio: string;
+  books: AuthorBook[];
+  socialLinks?: SocialLinks;
+  location?: string;
+  expertiseLevel?: ExpertiseLevel;
+  communicationStyle?: CommunicationStyle;
+}
+
+/**
+ * Podcast preferences interface for matching
+ */
+export interface PodcastPreferences {
+  example_shows: string[];
+  interview_topics: string[];
+  target_audience: string[];
+  preferred_formats: string[];
+  content_boundaries: string[];
+  min_listeners?: number;
+  max_duration?: number;
+  availability?: {
+    weekdays?: string[];
+    timeSlots?: string[];
+  };
 }

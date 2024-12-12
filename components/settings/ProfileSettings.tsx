@@ -7,17 +7,28 @@ import { useSession } from '@/hooks/useSession';
 import { settingsService } from '@/services/settings/base';
 import { profileSchema, type ProfileFormData } from '@/types/settings';
 import type { ExtendedUser } from '@/types/supabase';
+import type { AuthorOnboardingData, ExpertiseLevel } from '@/types/author';
+
+interface ProfileSettingsProps {
+  initialData?: Partial<AuthorOnboardingData> | null;
+  onSubmit: (data: Partial<AuthorOnboardingData>) => Promise<void>;
+  isSubmitting?: boolean;
+}
 
 /**
  * Profile settings component
  * Handles user profile information and preferences
  */
-export function ProfileSettings() {
+export function ProfileSettings({
+  initialData,
+  onSubmit: parentOnSubmit,
+  isSubmitting: parentIsSubmitting
+}: ProfileSettingsProps) {
   const { session } = useSession();
   const user = session?.user as ExtendedUser;
 
   // Loading and error states
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -28,16 +39,20 @@ export function ProfileSettings() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting: formIsSubmitting }
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-    mode: 'onSubmit'
+    mode: 'onSubmit',
+    defaultValues: initialData || {}
   });
 
-  // Load user's profile data
+  // Use parent isSubmitting state if provided
+  const isSubmitting = parentIsSubmitting ?? formIsSubmitting;
+
+  // Load user's profile data if no initial data provided
   useEffect(() => {
     async function loadProfile() {
-      if (!user?.id) return;
+      if (!user?.id || initialData) return;
 
       try {
         const { data, error } = await settingsService.profile.getProfile(
@@ -59,7 +74,7 @@ export function ProfileSettings() {
     }
 
     loadProfile();
-  }, [user?.id, reset]);
+  }, [user?.id, reset, initialData]);
 
   // Handle form submission
   const onSubmit = async (data: ProfileFormData) => {
@@ -67,11 +82,26 @@ export function ProfileSettings() {
 
     try {
       setSubmitStatus(null);
-      const { error } = await settingsService.profile.updateProfile(
-        user.id,
-        data
-      );
-      if (error) throw error;
+
+      // Convert ProfileFormData to AuthorOnboardingData
+      const authorData: Partial<AuthorOnboardingData> = {
+        name: data.name,
+        bio: data.bio,
+        location: data.location,
+        // Map expertise array to ExpertiseLevel if it exists
+        ...(data.expertise?.length && {
+          expertiseLevel: data.expertise[0] as ExpertiseLevel
+        }),
+        // Add social links if they exist
+        socialLinks: {
+          website: data.website,
+          twitter: data.twitter,
+          linkedin: data.linkedin
+        }
+      };
+
+      // Call parent onSubmit handler
+      await parentOnSubmit(authorData);
 
       setSubmitStatus({
         type: 'success',

@@ -147,118 +147,48 @@ async function checkExistingMatches() {
 
 export async function generateMatchesForAuthor(userId: string): Promise<void> {
   const supabase = createClient();
-  console.log('Starting generateMatchesForAuthor for user:', userId);
 
   try {
-    // Check subscription status and limits
+    // 1. Check subscription limits
     const isPremium = await isPremiumUser(supabase, userId);
-    let availableMatches = 10; // Default to max for premium users
+    const availableMatches = isPremium
+      ? 10
+      : Math.min(3, MATCHES_PER_DAY_BASIC);
 
-    if (!isPremium) {
-      // Check monthly limit
-      const startDate = startOfMonth(new Date());
-      const endDate = endOfMonth(new Date());
-      const { count: monthlyMatchCount } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('author_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
-
-      // Check daily limit
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const { count: dailyMatchCount } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('author_id', userId)
-        .gte('created_at', today.toISOString())
-        .lt('created_at', tomorrow.toISOString());
-
-      // Calculate available matches
-      const remainingMonthly =
-        BASIC_TIER_MONTHLY_LIMIT - (monthlyMatchCount || 0);
-      const remainingDaily = MATCHES_PER_DAY_BASIC - (dailyMatchCount || 0);
-      availableMatches = Math.min(remainingMonthly, remainingDaily);
-
-      if (availableMatches <= 0) {
-        console.log('Match limit reached for basic tier user');
-        return;
-      }
-    }
-
-    // First, check existing matches for this user
-    const { data: existingMatches } = await supabase
+    // 2. Get existing matches to avoid duplicates
+    const existingMatches = await supabase
       .from('matches')
       .select('podcast_id')
       .eq('author_id', userId);
 
-    console.log('Existing matches:', existingMatches);
-
-    // Get the IDs of already matched podcasts
     const matchedPodcastIds = existingMatches?.map((m) => m.podcast_id) || [];
-    console.log('Already matched podcast IDs:', matchedPodcastIds);
 
-    // 1. Get potential podcasts that haven't been matched yet
-    console.log('Fetching potential podcasts...');
-    const { data: podcasts, error: podcastError } = await supabase
+    // 3. Get potential new podcasts
+    const { data: podcasts } = await supabase
       .from('podcasts')
       .select('*')
       .not('id', 'in', matchedPodcastIds)
-      .limit(isPremium ? 10 : Math.min(3, availableMatches));
+      .limit(availableMatches);
 
-    console.log('Podcasts query result:', { podcasts, error: podcastError });
+    // 4. Generate matches using MatchMaker
+    const matches = await Promise.all(
+      podcasts.map(async (podcast) => {
+        const match = await MatchMaker.generateMatch(userId, podcast.id);
+        return {
+          author_id: userId,
+          podcast_id: podcast.id,
+          match_score: match.overallScore,
+          match_reason: match.breakdown.explanation,
+          status: 'new',
+          created_at: new Date().toISOString()
+        };
+      })
+    );
 
-    if (podcastError) {
-      console.error('Error fetching podcasts:', podcastError);
-      throw podcastError;
-    }
-    if (!podcasts?.length) {
-      console.log('No podcasts found in the database');
-      return;
-    }
-
-    console.log('Found podcasts:', podcasts.length);
-
-    // 2. Generate matches
-    console.log('Generating matches...');
-    const matches = podcasts.map((podcast) => ({
-      author_id: userId,
-      podcast_id: podcast.id,
-      match_score: 0.85, // Fixed score for testing
-      match_reason: ['Topic alignment', 'Audience size match'],
-      status: 'new',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_saved: false
-    }));
-
-    if (matches.length === 0) {
-      console.log('No matches were generated');
-      return;
-    }
-
-    console.log('Generated matches:', matches.length);
-    console.log('First match example:', matches[0]);
-
-    // 3. Insert matches into database
-    console.log('Inserting matches...');
-    const { data: insertedData, error: insertError } = await supabase
-      .from('matches')
-      .upsert(matches)
-      .select();
-
-    if (insertError) {
-      console.error('Error inserting matches:', insertError);
-      throw insertError;
-    }
-
-    console.log('Successfully inserted matches:', insertedData);
+    // 5. Store matches in database
+    await supabase.from('matches').upsert(matches);
   } catch (error) {
-    console.error('Error in generateMatchesForAuthor:', error);
+    console.error('Error generating matches:', error);
     throw error;
   }
 }

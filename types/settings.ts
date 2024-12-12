@@ -370,3 +370,28 @@ export type ApiKeyFormData = z.infer<typeof apiKeySchema>;
 export type IntegrationSettingsFormData = z.infer<
   typeof integrationSettingsSchema
 >;
+
+/**
+ * Validation schema for podcast preferences
+ */
+export const podcastPreferencesSchema = z.object({
+  example_shows: z.array(z.string()).min(1, 'Add at least one example show'),
+  interview_topics: z.array(z.string()).min(1, 'Add at least one topic'),
+  target_audience: z
+    .array(z.string())
+    .min(1, 'Add at least one target audience'),
+  preferred_formats: z.array(z.string()).optional(),
+  content_boundaries: z.array(z.string()).optional(),
+  min_listeners: z.number().min(0).optional(),
+  max_duration: z.number().min(0).optional(),
+  availability: z
+    .object({
+      weekdays: z.array(z.string()).optional(),
+      timeSlots: z.array(z.string()).optional()
+    })
+    .optional()
+});
+
+export type PodcastPreferencesFormData = z.infer<
+  typeof podcastPreferencesSchema
+>;

@@ -8,7 +8,7 @@ import { HostStyle } from '@/types/podcast';
 const supabase = createClient();
 
 export class MatchMaker {
-  // Scoring weights
+  // Scoring weights for different factors
   private static readonly TOPIC_WEIGHT = 0.35;
   private static readonly EXPERTISE_WEIGHT = 0.4;
   private static readonly STYLE_WEIGHT = 0.25;
@@ -92,12 +92,13 @@ export class MatchMaker {
     authorId: string,
     podcastId: string
   ): Promise<PodcastMatch> {
+    // Get analyses for both author and podcast
     const [author, podcast] = await Promise.all([
       this.getAuthorAnalysis(authorId),
       this.getPodcastAnalysis(podcastId)
     ]);
 
-    // Calculate scores first
+    // Calculate individual scores
     const topicScore = this.calculateTopicScore(
       author.topics,
       podcast.topicalFocus
@@ -107,49 +108,29 @@ export class MatchMaker {
       podcast.guestRequirements.minimumExpertise
     );
     const styleScore = this.calculateStyleScore(
-      author.communicationStyle as CommunicationStyle,
+      author.communicationStyle,
       podcast.hostStyle
     );
 
-    // Generate explanations based on calculated scores
-    const explanations = this.generateExplanations({
-      topicScore,
-      expertiseScore,
-      styleScore
-    });
-
-    const breakdown: MatchFactors = {
-      topicScore,
-      expertiseScore,
-      styleScore,
-      audienceScore: 0.8,
-      formatScore: 0.8,
-      lengthScore: 0.8,
-      complexityScore: 0.8,
-      qualityScore: 0.8,
-      explanation: explanations
-    };
-
+    // Calculate overall match score
     const overallScore =
-      breakdown.topicScore * this.TOPIC_WEIGHT +
-      breakdown.expertiseScore * this.EXPERTISE_WEIGHT +
-      breakdown.styleScore * this.STYLE_WEIGHT;
+      topicScore * this.TOPIC_WEIGHT +
+      expertiseScore * this.EXPERTISE_WEIGHT +
+      styleScore * this.STYLE_WEIGHT;
 
     return {
       podcastId,
       overallScore,
       confidence: Math.min(author.confidence, podcast.confidence),
-      breakdown,
-      suggestedTopics: author.topics.filter((topic) =>
-        podcast.topicalFocus.includes(topic)
-      ),
-      podcast: {
-        title: podcast.title || '',
-        category: podcast.category || 'Uncategorized',
-        description: podcast.description || '',
-        listeners: podcast.listeners || 0,
-        rating: podcast.rating || 0,
-        frequency: podcast.frequency || 'weekly'
+      breakdown: {
+        topicScore,
+        expertiseScore,
+        styleScore,
+        explanation: this.generateExplanations({
+          topicScore,
+          expertiseScore,
+          styleScore
+        })
       }
     };
   }
