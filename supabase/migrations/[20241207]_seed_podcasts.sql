@@ -17,3 +17,26 @@ ON CONFLICT (id) DO UPDATE SET
     categories = EXCLUDED.categories,
     language = EXCLUDED.language,
     total_episodes = EXCLUDED.total_episodes;
+
+-- Enable RLS
+alter table public.podcasts enable row level security;
+
+-- Allow authenticated users to read podcasts
+create policy "Authenticated users can read podcasts"
+  on public.podcasts for select
+  using (auth.role() = 'authenticated');
+
+-- Allow service role to manage podcasts
+create policy "Service role can manage podcasts"
+  on public.podcasts for all
+  using (auth.role() = 'service_role');
+
+-- Allow authenticated users to insert podcasts (needed for the listen-notes service)
+create policy "Authenticated users can insert podcasts"
+  on public.podcasts for insert
+  with check (auth.role() = 'authenticated');
+
+-- Allow authenticated users to update podcasts
+create policy "Authenticated users can update podcasts"
+  on public.podcasts for update
+  using (auth.role() = 'authenticated');

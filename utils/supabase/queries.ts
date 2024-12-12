@@ -54,18 +54,43 @@ export const getProducts = cache(async (supabase: SupabaseClient) => {
 });
 
 /**
- * Gets the user's profile details from the users table.
+ * Gets the user's profile details from the user_profiles table.
  * This function is cached to prevent unnecessary database calls.
  *
  * @param supabase - The Supabase client instance
  * @returns The user's profile details or null if not found
  */
 export const getUserDetails = cache(async (supabase: SupabaseClient) => {
-  const { data: userDetails } = await supabase
-    .from('users')
-    .select('*') // Get all user fields
-    .single(); // Expect only one user profile
-  return userDetails;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: userProfile } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  // If no profile exists yet, create one
+  if (!userProfile) {
+    const { data: newProfile } = await supabase
+      .from('user_profiles')
+      .insert([
+        {
+          id: user.id,
+          full_name: user.user_metadata?.full_name || null,
+          avatar_url: user.user_metadata?.avatar_url || null
+        }
+      ])
+      .select()
+      .single();
+
+    return newProfile;
+  }
+
+  return userProfile;
 });
 
 /**

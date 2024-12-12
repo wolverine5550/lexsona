@@ -108,18 +108,51 @@ export class PodcastAnalyzer {
     const cachedAnalysis = await checkCache(podcastId);
     if (cachedAnalysis) return cachedAnalysis;
 
+    // Fetch podcast data from database
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const { data: podcast, error } = await supabase
+      .from('podcasts')
+      .select('*')
+      .eq('id', podcastId)
+      .single();
+
+    if (error || !podcast) {
+      throw new Error(
+        `Failed to fetch podcast data: ${error?.message || 'Podcast not found'}`
+      );
+    }
+
     // Analyze podcast content and style
     const analysis = await this.analyzeWithAI(podcast);
+
+    // Store analysis in database
+    const { error: insertError } = await supabase
+      .from('podcast_analysis')
+      .upsert({
+        podcast_id: podcastId,
+        host_style: analysis.hostStyle,
+        audience_level: analysis.audienceLevel,
+        topics: analysis.topics,
+        confidence: analysis.confidence,
+        analyzed_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      console.error('Error storing podcast analysis:', insertError);
+    }
 
     return {
       ...podcast,
       analysis: {
         hostStyle: analysis.hostStyle,
         audienceLevel: analysis.audienceLevel,
-        topicDepth: analysis.topicDepth,
-        guestRequirements: analysis.guestRequirements,
-        topicalFocus: analysis.topicalFocus,
-        confidence: analysis.confidence
+        topics: analysis.topics,
+        confidence: analysis.confidence,
+        lastAnalyzed: new Date()
       }
     };
   }
@@ -159,3 +192,54 @@ export class PodcastAnalyzer {
     };
   }
 }
+
+/**
+ * Check if we have a recent analysis cached in the database
+ */
+const checkCache = async (
+  podcastId: string
+): Promise<EnhancedPodcast | null> => {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Query the podcast_analysis table
+    const { data, error } = await supabase
+      .from('podcast_analysis')
+      .select('*, podcasts(*)')
+      .eq('podcast_id', podcastId)
+      .single();
+
+    if (error) {
+      console.error('Error checking podcast analysis cache:', error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    // Check if the analysis is recent (less than 7 days old)
+    const analysisDate = new Date(data.analyzed_at);
+    const now = new Date();
+    const daysSinceAnalysis =
+      (now.getTime() - analysisDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysSinceAnalysis > 7) return null;
+
+    // Transform the data into the expected format
+    return {
+      ...data.podcasts,
+      analysis: {
+        hostStyle: data.host_style,
+        audienceLevel: data.audience_level,
+        topics: data.topics,
+        confidence: data.confidence,
+        lastAnalyzed: data.analyzed_at
+      }
+    };
+  } catch (error) {
+    console.error('Error in checkCache:', error);
+    return null;
+  }
+};

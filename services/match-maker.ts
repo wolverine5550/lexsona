@@ -1,9 +1,11 @@
 import { createClient } from '@/utils/supabase/client';
-import { AuthorAnalysis } from '@/types/author';
-import { PodcastAnalysis } from '@/types/podcast';
+import {
+  AuthorAnalysis,
+  ExpertiseLevel,
+  CommunicationStyle
+} from '@/types/author';
+import { PodcastAnalysis, HostStyle } from '@/types/podcast';
 import { PodcastMatch, MatchFactors } from '@/types/matching';
-import { CommunicationStyle } from '@/types/author';
-import { HostStyle } from '@/types/podcast';
 
 const supabase = createClient();
 
@@ -18,38 +20,55 @@ export class MatchMaker {
     CommunicationStyle,
     HostStyle[]
   > = {
-    professional: ['interview', 'educational', 'debate'],
-    casual: ['conversational', 'storytelling'],
-    academic: ['educational', 'debate'],
-    storyteller: ['storytelling', 'conversational']
+    [CommunicationStyle.Professional]: ['interview', 'educational', 'debate'],
+    [CommunicationStyle.Casual]: ['conversational', 'storytelling'],
+    [CommunicationStyle.Academic]: ['educational', 'debate'],
+    [CommunicationStyle.Storyteller]: ['storytelling', 'conversational']
   };
 
   private static calculateTopicScore(
     authorTopics: string[],
-    podcastTopics: string[]
+    podcastTopics: (string | number)[]
   ): number {
-    const matchingTopics = authorTopics.filter((topic) =>
-      podcastTopics.some((podTopic) =>
-        podTopic.toLowerCase().includes(topic.toLowerCase())
-      )
+    // Convert all topics to lowercase strings for comparison
+    const normalizedAuthorTopics = authorTopics.map((topic) =>
+      String(topic).toLowerCase()
     );
+    const normalizedPodcastTopics = podcastTopics.map((topic) =>
+      String(topic).toLowerCase()
+    );
+
+    const matchingTopics = normalizedAuthorTopics.filter((topic) =>
+      normalizedPodcastTopics.some((podTopic) => podTopic.includes(topic))
+    );
+
     return (
       matchingTopics.length /
-      Math.max(1, Math.min(authorTopics.length, podcastTopics.length))
+      Math.max(
+        1,
+        Math.min(normalizedAuthorTopics.length, normalizedPodcastTopics.length)
+      )
     );
   }
 
   private static calculateExpertiseScore(
-    authorLevel: string,
-    requiredLevel: string
+    authorLevel: ExpertiseLevel,
+    podcastLevel: string
   ): number {
-    const levels = ['beginner', 'intermediate', 'expert'];
+    const levels = [
+      ExpertiseLevel.Beginner,
+      ExpertiseLevel.Intermediate,
+      ExpertiseLevel.Expert
+    ];
     const authorIdx = levels.indexOf(authorLevel);
-    const requiredIdx = levels.indexOf(requiredLevel);
+    const podcastIdx = levels.indexOf(podcastLevel as ExpertiseLevel);
 
-    if (authorIdx >= requiredIdx) return 1.0;
-    if (authorIdx === requiredIdx - 1) return 0.3;
-    return 0.1;
+    // If podcast level is not specified, assume intermediate
+    if (podcastIdx === -1) return 0.7;
+
+    if (authorIdx >= podcastIdx) return 1.0;
+    if (authorIdx === podcastIdx - 1) return 0.5;
+    return 0.2;
   }
 
   private static calculateStyleScore(
@@ -76,7 +95,7 @@ export class MatchMaker {
     if (scores.expertiseScore > 0.8) {
       explanations.push('Expertise level matches podcast requirements');
     } else if (scores.expertiseScore < 0.5) {
-      explanations.push('Expertise level may be insufficient');
+      explanations.push('Expertise level may need development');
     }
 
     if (scores.styleScore > 0.7) {
@@ -92,6 +111,8 @@ export class MatchMaker {
     authorId: string,
     podcastId: string
   ): Promise<PodcastMatch> {
+    console.log('Starting match generation:', { authorId, podcastId });
+
     // Get analyses for both author and podcast
     const [author, podcast] = await Promise.all([
       this.getAuthorAnalysis(authorId),
@@ -99,17 +120,14 @@ export class MatchMaker {
     ]);
 
     // Calculate individual scores
-    const topicScore = this.calculateTopicScore(
-      author.topics,
-      podcast.topicalFocus
-    );
+    const topicScore = this.calculateTopicScore(author.topics, podcast.topics);
     const expertiseScore = this.calculateExpertiseScore(
       author.expertiseLevel,
-      podcast.guestRequirements.minimumExpertise
+      podcast.audienceLevel
     );
     const styleScore = this.calculateStyleScore(
       author.communicationStyle,
-      podcast.hostStyle
+      podcast.hostStyle as HostStyle
     );
 
     // Calculate overall match score
@@ -118,19 +136,40 @@ export class MatchMaker {
       expertiseScore * this.EXPERTISE_WEIGHT +
       styleScore * this.STYLE_WEIGHT;
 
+    const matchFactors: MatchFactors = {
+      topicScore,
+      expertiseScore,
+      styleScore,
+      audienceScore: expertiseScore, // Use expertise score as audience score
+      formatScore: styleScore, // Use style score as format score
+      lengthScore: 1.0, // Default to 1.0 as we don't have length requirements yet
+      complexityScore: expertiseScore, // Use expertise score as complexity score
+      qualityScore: Math.min(author.confidence, podcast.confidence),
+      explanation: this.generateExplanations({
+        topicScore,
+        expertiseScore,
+        styleScore
+      })
+    };
+
     return {
       podcastId,
       overallScore,
       confidence: Math.min(author.confidence, podcast.confidence),
-      breakdown: {
-        topicScore,
-        expertiseScore,
-        styleScore,
-        explanation: this.generateExplanations({
-          topicScore,
-          expertiseScore,
-          styleScore
-        })
+      breakdown: matchFactors,
+      suggestedTopics: author.topics.filter((topic) => {
+        const normalizedTopic = String(topic).toLowerCase();
+        return podcast.topics.some((podTopic) =>
+          String(podTopic).toLowerCase().includes(normalizedTopic)
+        );
+      }),
+      podcast: {
+        title: podcast.title,
+        category: podcast.category,
+        description: podcast.description,
+        listeners: podcast.listeners,
+        rating: podcast.rating,
+        frequency: podcast.frequency
       }
     };
   }
@@ -141,12 +180,38 @@ export class MatchMaker {
     const { data, error } = await supabase
       .from('author_analysis')
       .select('*')
-      .eq('id', authorId)
-      .single();
+      .eq('author_id', authorId)
+      .maybeSingle();
 
-    if (error) throw error;
-    if (!data) throw new Error('Author analysis not found');
-    return data;
+    // If no analysis exists yet, return default values
+    if (!data) {
+      return {
+        authorId,
+        topics: ['general'],
+        expertiseLevel: ExpertiseLevel.Beginner,
+        communicationStyle: CommunicationStyle.Casual,
+        keyPoints: [],
+        preferredFormats: ['interview'],
+        targetAudience: ['general'],
+        contentBoundaries: [],
+        confidence: 0.7
+      };
+    }
+
+    return {
+      authorId: data.author_id,
+      topics: data.topics || ['general'],
+      expertiseLevel:
+        (data.expertise_level as ExpertiseLevel) || ExpertiseLevel.Beginner,
+      communicationStyle:
+        (data.communication_style as CommunicationStyle) ||
+        CommunicationStyle.Casual,
+      keyPoints: data.key_points || [],
+      preferredFormats: data.preferred_formats || ['interview'],
+      targetAudience: data.target_audience || ['general'],
+      contentBoundaries: data.content_boundaries || [],
+      confidence: data.confidence || 0.7
+    };
   }
 
   private static async getPodcastAnalysis(podcastId: string): Promise<
@@ -159,40 +224,52 @@ export class MatchMaker {
       frequency: string;
     }
   > {
-    const { data, error } = await supabase
-      .from('podcast_analysis')
-      .select(
-        `
-        *,
-        podcasts!inner (
-          title,
-          description,
-          categories,
-          total_episodes,
-          listen_score
-        )
-      `
-      )
-      .eq('podcast_id', podcastId)
+    // First get the podcast details
+    const { data: podcast, error: podcastError } = await supabase
+      .from('podcasts')
+      .select('*')
+      .eq('id', podcastId)
       .single();
 
-    if (error) throw error;
-    if (!data) throw new Error('Podcast analysis not found');
+    if (podcastError || !podcast) {
+      throw new Error(
+        `Podcast not found: ${podcastError?.message || 'Unknown error'}`
+      );
+    }
 
-    const categories = Array.isArray(data.podcasts.categories)
-      ? data.podcasts.categories
-      : [];
-    const listenScore = data.podcasts.listen_score || 0;
-    const totalEpisodes = data.podcasts.total_episodes || 0;
+    // Then get the analysis if it exists
+    const { data: analysis, error: analysisError } = await supabase
+      .from('podcast_analysis')
+      .select('*')
+      .eq('podcast_id', podcastId)
+      .maybeSingle();
+
+    // If no analysis exists yet, use default values
+    const defaultAnalysis = {
+      hostStyle: 'interview' as HostStyle,
+      audienceLevel: ExpertiseLevel.Intermediate,
+      topics: podcast.categories || ['general'],
+      confidence: 0.7
+    };
+
+    const finalAnalysis = analysis || defaultAnalysis;
 
     return {
-      ...data,
-      title: data.podcasts.title,
-      description: data.podcasts.description || '',
-      category: categories[0] || 'Uncategorized',
-      listeners: listenScore,
-      rating: listenScore ? listenScore / 20 : 0,
-      frequency: totalEpisodes ? 'weekly' : 'unknown'
+      podcastId: podcast.id,
+      hostStyle:
+        (finalAnalysis.host_style as HostStyle) || defaultAnalysis.hostStyle,
+      audienceLevel:
+        (finalAnalysis.audience_level as ExpertiseLevel) ||
+        defaultAnalysis.audienceLevel,
+      topics: finalAnalysis.topics || defaultAnalysis.topics,
+      confidence: finalAnalysis.confidence || defaultAnalysis.confidence,
+      title: podcast.title,
+      description: podcast.description,
+      category: podcast.categories?.[0] || '',
+      listeners: podcast.listen_score || 0,
+      rating: podcast.listen_score ? podcast.listen_score / 20 : 0,
+      frequency: 'weekly',
+      lastAnalyzed: finalAnalysis.analyzed_at || new Date()
     };
   }
 }

@@ -31,16 +31,17 @@ export function RecentMatches({
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Sort matches by most recent first
-  const sortedMatches = [...matches];
+  // Sort matches by most recent first and ensure uniqueness
+  const sortedMatches = matches.filter(
+    (match, index, self) => index === self.findIndex((m) => m.id === match.id)
+  );
 
   // Determine if this is the user's first day (has 3 or fewer matches)
   const isFirstDay = sortedMatches.length <= 3;
 
-  // Get today's matches (either first 3 for first day, or most recent for returning users)
-  const todayMatches = isFirstDay
-    ? sortedMatches.slice(0, 3)
-    : [sortedMatches[0]];
+  // For first day users, show all matches (up to 3)
+  // For returning users, show latest match in today's section
+  const todayMatches = isFirstDay ? sortedMatches : [sortedMatches[0]];
 
   // Get historical matches (exclude today's matches)
   const historyMatches = isFirstDay ? [] : sortedMatches.slice(1);
@@ -90,7 +91,7 @@ export function RecentMatches({
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {todayMatches.map((match) => (
             <div
-              key={match.podcastId}
+              key={`today-${match.id}`}
               className="rounded-xl border-2 border-purple-500 bg-zinc-900/50 p-6 relative"
             >
               <div className="absolute -top-3 left-4 bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -164,7 +165,7 @@ export function RecentMatches({
               : historyMatches.slice(0, COLLAPSED_VIEW_LIMIT)
             ).map((match) => (
               <div
-                key={match.podcastId}
+                key={`history-${match.id}`}
                 className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-zinc-700 transition-colors"
               >
                 <div className="space-y-3">

@@ -31,6 +31,7 @@ export interface MatchFactors {
  * Result of a podcast match
  */
 export interface PodcastMatch {
+  id: string;
   podcastId: string;
   overallScore: number;
   confidence: number;
