@@ -10,6 +10,13 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/Dialog';
+import { PodcastDetailsModal } from '../podcast/PodcastDetailsModal';
 
 interface RecentMatchesProps {
   matches: PodcastMatch[];
@@ -73,6 +80,55 @@ export function RecentMatches({
     }
   };
 
+  const MatchCard = ({ match }: { match: Match }) => {
+    // Add state for modal
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+    return (
+      <div className="rounded-lg bg-card p-6 shadow-sm">
+        {/* Existing match title and description */}
+        <h3 className="text-2xl font-bold text-white">{match.title}</h3>
+        <p className="mt-2 text-gray-400">{match.description}</p>
+
+        {/* Stats row - keep existing */}
+        <div className="mt-4 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <UserIcon className="h-5 w-5 text-gray-400" />
+            <span className="text-sm text-gray-400">
+              {match.listenerCount} listeners
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <StarIcon className="h-5 w-5 text-gray-400" />
+            <span className="text-sm text-gray-400">{match.rating}</span>
+          </div>
+        </div>
+
+        {/* Buttons - Reordered */}
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={() => setIsDetailsOpen(true)}
+            className="flex-1 rounded-md bg-gray-800 px-4 py-2 text-white hover:bg-gray-700"
+          >
+            View Details
+          </button>
+          <button className="flex-1 rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90">
+            Send Pitch
+          </button>
+        </div>
+
+        {/* Add Modal */}
+        <PodcastDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          podcastId={match.podcastId}
+        />
+      </div>
+    );
+  };
+
+  console.log('All matches:', matches);
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -89,43 +145,61 @@ export function RecentMatches({
           </h3>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {todayMatches.map((match) => (
-            <div
-              key={`today-${match.id}`}
-              className="rounded-xl border-2 border-purple-500 bg-zinc-900/50 p-6 relative"
-            >
-              <div className="absolute -top-3 left-4 bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                New Match
-              </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-white">
-                  {match.podcast.title}
-                </h3>
-                <p className="text-zinc-400">{match.podcast.category}</p>
-                <p className="text-zinc-300">{match.podcast.description}</p>
+          {todayMatches.map((match) => {
+            const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-                <div className="flex gap-4 text-zinc-400">
-                  <div className="flex items-center gap-1">
-                    <UserIcon className="w-5 h-5" />
-                    <span>{match.podcast.listeners} listeners</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <StarIcon className="w-5 h-5" />
-                    <span>{match.podcast.rating}</span>
-                  </div>
-                </div>
+            console.log('Today Match:', {
+              matchId: match.id,
+              podcastId: match.podcastId,
+              fullMatch: match,
+              podcast: match.podcast
+            });
 
-                <div className="flex gap-4">
-                  <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
-                    Send Pitch
-                  </Button>
-                  <Button className="flex-1 bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800">
-                    View Details
-                  </Button>
+            return (
+              <div
+                key={`today-${match.id}`}
+                className="rounded-xl border-2 border-purple-500 bg-zinc-900/50 p-6 relative"
+              >
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-bold text-white">
+                    {match.podcast.title}
+                  </h3>
+                  <p className="text-zinc-400">{match.podcast.category}</p>
+                  <p className="text-zinc-300">{match.podcast.description}</p>
+
+                  <div className="flex gap-4 text-zinc-400">
+                    <div className="flex items-center gap-1">
+                      <UserIcon className="w-5 h-5" />
+                      <span>{match.podcast.listeners} listeners</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <StarIcon className="w-5 h-5" />
+                      <span>{match.podcast.rating}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button
+                      className="flex-1 bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800"
+                      onClick={() => setIsDetailsOpen(true)}
+                    >
+                      View Details
+                    </Button>
+                    <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
+                      Send Pitch
+                    </Button>
+                  </div>
+
+                  {/* Add modal after the buttons */}
+                  <PodcastDetailsModal
+                    isOpen={isDetailsOpen}
+                    onClose={() => setIsDetailsOpen(false)}
+                    podcastId={match.podcastId}
+                  />
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -163,40 +237,60 @@ export function RecentMatches({
             {(isExpanded
               ? historyMatches
               : historyMatches.slice(0, COLLAPSED_VIEW_LIMIT)
-            ).map((match) => (
-              <div
-                key={`history-${match.id}`}
-                className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-zinc-700 transition-colors"
-              >
-                <div className="space-y-3">
-                  <h3 className="text-2xl font-bold text-white">
-                    {match.podcast.title}
-                  </h3>
-                  <p className="text-zinc-400">{match.podcast.category}</p>
-                  <p className="text-zinc-300">{match.podcast.description}</p>
+            ).map((match) => {
+              const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-                  <div className="flex gap-4 text-zinc-400">
-                    <div className="flex items-center gap-1">
-                      <UserIcon className="w-5 h-5" />
-                      <span>{match.podcast.listeners} listeners</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <StarIcon className="w-5 h-5" />
-                      <span>{match.podcast.rating}</span>
-                    </div>
-                  </div>
+              console.log('History Match:', {
+                matchId: match.id,
+                fullMatch: match,
+                podcast: match.podcast
+              });
 
-                  <div className="flex gap-4">
-                    <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
-                      Send Pitch
-                    </Button>
-                    <Button className="flex-1 bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800">
-                      View Details
-                    </Button>
+              return (
+                <div
+                  key={`history-${match.id}`}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-zinc-700 transition-colors"
+                >
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-bold text-white">
+                      {match.podcast.title}
+                    </h3>
+                    <p className="text-zinc-400">{match.podcast.category}</p>
+                    <p className="text-zinc-300">{match.podcast.description}</p>
+
+                    <div className="flex gap-4 text-zinc-400">
+                      <div className="flex items-center gap-1">
+                        <UserIcon className="w-5 h-5" />
+                        <span>{match.podcast.listeners} listeners</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <StarIcon className="w-5 h-5" />
+                        <span>{match.podcast.rating}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
+                        Send Pitch
+                      </Button>
+                      <Button
+                        className="flex-1 bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800"
+                        onClick={() => setIsDetailsOpen(true)}
+                      >
+                        View Details
+                      </Button>
+                    </div>
+
+                    {/* Add modal after the buttons */}
+                    <PodcastDetailsModal
+                      isOpen={isDetailsOpen}
+                      onClose={() => setIsDetailsOpen(false)}
+                      podcastId={match.podcastId}
+                    />
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

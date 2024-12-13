@@ -394,3 +394,15 @@ export async function populatePodcastDatabase() {
     throw error;
   }
 }
+
+export const getPodcastDetails = async (podcastId: string) => {
+  try {
+    // Replace with your actual API endpoint
+    const response = await fetch(`/api/podcasts/${podcastId}`);
+    if (!response.ok) throw new Error('Failed to fetch podcast details');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching podcast details:', error);
+    throw error;
+  }
+};
