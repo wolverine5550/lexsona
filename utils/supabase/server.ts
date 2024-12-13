@@ -1,7 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/types_db';
 
+// Regular client for server components with cookie handling
 export const createClient = () => {
   const cookieStore = cookies();
 
@@ -32,6 +34,7 @@ export const createClient = () => {
   );
 };
 
+// Admin client for API routes
 export const createServerSupabaseClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,7 +43,7 @@ export const createServerSupabaseClient = () => {
     throw new Error('Missing Supabase environment variables');
   }
 
-  return createClient(supabaseUrl, supabaseKey, {
+  return createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false
     }

@@ -61,7 +61,11 @@ export async function getRecentMatches(userId: string) {
 
     // For new users, always use INITIAL_MATCHES
     // For existing users, use their subscription limit
-    const effectiveLimit = isNewUser ? INITIAL_MATCHES : isPremium ? 10 : 2;
+    const effectiveLimit = isNewUser
+      ? INITIAL_MATCHES
+      : isPremium
+        ? 10
+        : MATCHES_PER_DAY_BASIC;
 
     console.log('User status:', {
       isNewUser,

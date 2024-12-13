@@ -33,7 +33,7 @@ interface RecentMatchesProps {
 export function RecentMatches({
   matches,
   isPremium,
-  limit
+  limit = 3 // Default is 3
 }: RecentMatchesProps) {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -46,12 +46,19 @@ export function RecentMatches({
   // Determine if this is the user's first day (has 3 or fewer matches)
   const isFirstDay = sortedMatches.length <= 3;
 
-  // For first day users, show all matches (up to 3)
-  // For returning users, show latest match in today's section
-  const todayMatches = isFirstDay ? sortedMatches : [sortedMatches[0]];
+  // Split matches into today's and history
+  const todayMatches = matches.slice(0, limit);
+  const historyMatches = matches.slice(limit);
 
-  // Get historical matches (exclude today's matches)
-  const historyMatches = isFirstDay ? [] : sortedMatches.slice(1);
+  // Add logging after variables are defined
+  console.log('Matches debug:', {
+    totalMatches: matches.length,
+    limit,
+    isFirstDay: isFirstDay,
+    todayMatches: todayMatches.length,
+    historyMatches: historyMatches.length,
+    rawMatches: matches
+  });
 
   // Number of matches to show in collapsed history view
   const COLLAPSED_VIEW_LIMIT = 3;

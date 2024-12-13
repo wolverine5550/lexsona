@@ -3,6 +3,27 @@ import { PodcastAnalyzer } from './podcast-analyzer';
 import { ExpertiseLevel } from '@/types/author';
 import { HostStyle } from '@/types/podcast';
 
+interface ListenNotesSearchResult {
+  results: Array<{
+    id: string;
+    title: string;
+    description: string;
+    publisher: string;
+    genre_ids: number[];
+    total_episodes: number;
+    listen_score: number;
+    image: string;
+    website: string;
+    language: string;
+    explicit_content: boolean;
+    latest_pub_date_ms: number;
+    [key: string]: any; // for other fields we might not use
+  }>;
+  total: number;
+  count: number;
+  next_offset: number;
+}
+
 export class ListenNotesClient {
   private apiKey: string;
   private rateLimitDelay = 2000; // 2 seconds between requests
@@ -29,7 +50,7 @@ export class ListenNotesClient {
     len_min?: number;
     len_max?: number;
     offset?: number;
-  }) {
+  }): Promise<ListenNotesSearchResult> {
     const response = await fetch(
       `https://listen-api.listennotes.com/api/v2/search?q=${q}&type=${type}&language=${language}&len_min=${len_min}&len_max=${len_max}&offset=${offset}`,
       {
@@ -55,7 +76,10 @@ export class ListenNotesClient {
   }
 
   // Add method to fetch podcasts by topics with rate limiting
-  async fetchPodcastsByTopics(topics: string[], maxPerTopic = 3) {
+  async fetchPodcastsByTopics(
+    topics: string[],
+    maxPerTopic = 3
+  ): Promise<ListenNotesSearchResult['results']> {
     const results = [];
     for (const topic of topics) {
       try {
@@ -359,8 +383,8 @@ export async function populatePodcastDatabase() {
           podcast.title
             .toLowerCase()
             .split(' ')
-            .filter((word) => word.length > 4 && !commonWords.has(word))
-            .forEach((word) => topicSet.add(word));
+            .filter((word: string) => word.length > 4 && !commonWords.has(word))
+            .forEach((word: string) => topicSet.add(word));
 
           const { error: analysisError } = await supabase
             .from('podcast_analysis')
