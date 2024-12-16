@@ -10,7 +10,26 @@ import {
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
-export type OnboardingStep = 0 | 1 | 2;
+export type OnboardingStep = 0 | 1 | 2 | 3;
+
+const steps = [
+  {
+    title: 'Author Profile',
+    path: '/onboarding/profile'
+  },
+  {
+    title: 'Book Details',
+    path: '/onboarding/book'
+  },
+  {
+    title: 'Podcast Preferences',
+    path: '/onboarding/podcast-preferences'
+  },
+  {
+    title: 'Choose Plan',
+    path: '/onboarding/pricing'
+  }
+];
 
 export interface OnboardingContextType {
   currentStep: OnboardingStep;
@@ -110,7 +129,7 @@ export function OnboardingProvider({
     });
 
     // Move to next step if available
-    if (step < 2) {
+    if (step < 3) {
       setCurrentStep((step + 1) as OnboardingStep);
     }
   };

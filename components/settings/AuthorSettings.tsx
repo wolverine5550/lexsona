@@ -12,6 +12,20 @@ import {
   podcastPreferencesSchema,
   type PodcastPreferencesFormData
 } from '@/types/settings';
+import Link from 'next/link';
+import { createClient } from '@/utils/supabase/client';
+import { Database } from '@/types_db';
+
+type Subscription = Database['public']['Tables']['subscriptions']['Row'] & {
+  prices: {
+    id: string;
+    product_id: string;
+    products: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+};
 
 interface PodcastPreferencesFormProps {
   preferences: Partial<PodcastPreferences>;
@@ -182,17 +196,35 @@ export function AuthorSettings() {
     useState<Partial<AuthorOnboardingData> | null>(null);
   const [preferencesData, setPreferencesData] =
     useState<Partial<PodcastPreferences> | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
     async function loadData() {
       try {
-        const response = await fetch('/api/profile/update');
-        if (!response.ok) throw new Error('Failed to load profile data');
+        const supabase = createClient();
+        const [profileResponse, subscriptionResponse] = await Promise.all([
+          fetch('/api/profile/update'),
+          supabase
+            .from('subscriptions')
+            .select('*, prices(*, products(*))')
+            .single()
+        ]);
 
-        const data = await response.json();
-        setProfileData(data.data.profile);
-        setPreferencesData(data.data.preferences);
+        if (!profileResponse.ok) throw new Error('Failed to load profile data');
+
+        const profileData = await profileResponse.json();
+        setProfileData(profileData.data.profile);
+        setPreferencesData(profileData.data.preferences);
+
+        if (subscriptionResponse.data) {
+          setSubscription(subscriptionResponse.data);
+          setIsPremium(
+            subscriptionResponse.data.status === 'active' &&
+              subscriptionResponse.data.prices?.products?.name === 'Pro'
+          );
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -251,10 +283,24 @@ export function AuthorSettings() {
       // Update local state with new data
       setPreferencesData(data);
 
-      toast({
-        title: 'Success',
-        description: 'Podcast preferences updated successfully'
-      });
+      // If user is premium, update matches immediately
+      if (isPremium) {
+        try {
+          await fetch('/api/matches/regenerate', { method: 'POST' });
+          toast({
+            title: 'Success',
+            description: 'Preferences updated and matches regenerated'
+          });
+        } catch (error) {
+          console.error('Failed to regenerate matches:', error);
+        }
+      } else {
+        toast({
+          title: 'Success',
+          description:
+            "Preferences updated. Changes will be reflected in tomorrow's matches"
+        });
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -303,6 +349,21 @@ export function AuthorSettings() {
         <TabsContent value="preferences">
           <div className="p-6">
             <h2 className="text-lg font-semibold mb-6">Podcast Preferences</h2>
+            {subscription?.status !== 'active' && (
+              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-sm text-zinc-300">
+                  ⚡️ Upgrade to Pro to have your preference changes reflected
+                  immediately in your matches. Free plan changes will be
+                  reflected in tomorrow's matches.
+                </p>
+                <Link
+                  href="/onboarding/pricing"
+                  className="inline-flex items-center px-4 py-2 mt-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  Upgrade to Pro
+                </Link>
+              </div>
+            )}
             <PodcastPreferencesForm
               preferences={preferencesData || {}}
               onSubmit={handlePreferencesUpdate}

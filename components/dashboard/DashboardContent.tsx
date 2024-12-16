@@ -3,16 +3,24 @@
 import { User } from '@supabase/supabase-js';
 import { RecentMatches } from '@/components/dashboard/RecentMatches';
 import { getRecentMatches, generateMatchesForAuthor } from '@/services/matches';
-import { isPremiumUser, getMatchLimit } from '@/utils/subscription';
-import { createClient } from '@/utils/supabase/client';
 import Button from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import type { PodcastMatch } from '@/types/matching';
-import { populatePodcastDatabase } from '@/services/listen-notes';
+import Link from 'next/link';
+import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types_db';
 
 interface DashboardContentProps {
   user: User;
 }
+
+type Subscription = Database['public']['Tables']['subscriptions']['Row'] & {
+  prices?: {
+    products?: {
+      name?: string;
+    };
+  };
+};
 
 export function DashboardContent({ user }: DashboardContentProps) {
   const [matches, setMatches] = useState<PodcastMatch[]>([]);
@@ -21,6 +29,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [isPremium, setIsPremium] = useState(false);
   const [matchLimit, setMatchLimit] = useState(10);
   const [error, setError] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -32,15 +41,29 @@ export function DashboardContent({ user }: DashboardContentProps) {
         setIsLoading(true);
         setError(null);
 
-        // Check premium status
-        const premium = await isPremiumUser(createClient(), user.id);
-        if (!mounted) return;
-        setIsPremium(premium);
+        const supabase = createClient();
+        // Get subscription status
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*, prices(*, products(*))')
+          .eq('user_id', user.id)
+          .single();
+
+        if (mounted) {
+          setSubscription(sub);
+          setIsPremium(
+            sub?.status === 'active' && sub?.prices?.products?.name === 'Pro'
+          );
+        }
 
         // Get match limit based on subscription
-        const limit = await getMatchLimit(createClient(), user.id, premium);
-        if (!mounted) return;
-        setMatchLimit(limit);
+        const limit =
+          sub?.status === 'active'
+            ? sub?.prices?.products?.name === 'Pro'
+              ? Infinity
+              : 5
+            : 1;
+        if (mounted) setMatchLimit(limit);
 
         // Load initial matches
         if (mounted) setLoadingState('Loading matches...');
@@ -118,7 +141,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
   return (
     <div className="container max-w-6xl py-8 space-y-8">
-      <div>
+      <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold">
           Hi,{' '}
           {user?.user_metadata?.name ||
@@ -126,6 +149,14 @@ export function DashboardContent({ user }: DashboardContentProps) {
             user?.email?.split('@')[0] ||
             'Guest'}
         </h1>
+        {subscription?.status !== 'active' && (
+          <Link
+            href="/onboarding/pricing"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Upgrade to Pro
+          </Link>
+        )}
       </div>
 
       {error && (
@@ -154,6 +185,24 @@ export function DashboardContent({ user }: DashboardContentProps) {
           isPremium={isPremium}
           limit={matchLimit}
         />
+      )}
+
+      {/* Upgrade Banner for Free Users */}
+      {subscription?.status !== 'active' && (
+        <div className="mt-8 p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-500/20">
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Unlock More Matches
+          </h2>
+          <p className="text-zinc-300 mb-4">
+            Upgrade to Pro to get unlimited matches and advanced features.
+          </p>
+          <Link
+            href="/onboarding/pricing"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            View Plans
+          </Link>
+        </div>
       )}
     </div>
   );
