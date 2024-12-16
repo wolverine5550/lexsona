@@ -4,6 +4,7 @@ import { MatchMaker } from './match-maker';
 import { PodcastAnalyzer } from './podcast-analyzer';
 import { isPremiumUser, getMatchLimit } from '@/utils/subscription';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { TieredMatchingService } from './tiered-matching-service';
 
 interface PodcastQueryResult {
   id: string;
@@ -191,7 +192,10 @@ async function checkExistingMatches() {
   return { data, error };
 }
 
-export async function generateMatchesForAuthor(userId: string): Promise<void> {
+export async function generateMatchesForAuthor(
+  userId: string,
+  useTieredMatching: boolean = false
+): Promise<void> {
   const supabase = createClient();
 
   try {
@@ -216,9 +220,50 @@ export async function generateMatchesForAuthor(userId: string): Promise<void> {
     console.log('User match status:', {
       isPremium,
       isNewUser,
-      availableMatches
+      availableMatches,
+      useTieredMatching
     });
 
+    // Get user preferences
+    const { data: preferences, error: prefError } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (prefError || !preferences) {
+      throw new Error('User preferences not found');
+    }
+
+    // Use tiered matching if enabled, otherwise use existing logic
+    if (useTieredMatching) {
+      const matches = await TieredMatchingService.findMatches(preferences, {
+        maxResults: availableMatches,
+        excludePodcastIds: existingMatches?.map((m) => m.podcast_id) || []
+      });
+
+      // Store matches
+      const matchesToStore = matches.map((match) => ({
+        author_id: userId,
+        podcast_id: match.podcastId,
+        match_score: match.overallScore,
+        match_reason: match.breakdown.explanation,
+        status: 'new',
+        created_at: new Date().toISOString()
+      }));
+
+      const { error: storeError } = await supabase
+        .from('matches')
+        .upsert(matchesToStore);
+
+      if (storeError) {
+        throw storeError;
+      }
+
+      return;
+    }
+
+    // Existing logic continues below...
     const matchedPodcastIds = (existingMatches || []).map((m) => m.podcast_id);
 
     // 3. Get potential new podcasts, excluding sample podcasts
@@ -295,7 +340,7 @@ export async function generateMatchesForAuthor(userId: string): Promise<void> {
       console.log('Successfully stored matches in database');
     }
   } catch (error) {
-    console.error('Error generating matches:', error);
+    console.error('Error in match generation:', error);
     throw error;
   }
 }

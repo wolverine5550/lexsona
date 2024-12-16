@@ -87,27 +87,29 @@ export function RecentMatches({
     }
   };
 
-  const MatchCard = ({ match }: { match: Match }) => {
+  const MatchCard = ({ match }: { match: PodcastMatch }) => {
     // Add state for modal
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     return (
       <div className="rounded-lg bg-card p-6 shadow-sm">
         {/* Existing match title and description */}
-        <h3 className="text-2xl font-bold text-white">{match.title}</h3>
-        <p className="mt-2 text-gray-400">{match.description}</p>
+        <h3 className="text-2xl font-bold text-white">{match.podcast.title}</h3>
+        <p className="mt-2 text-gray-400">{match.podcast.description}</p>
 
         {/* Stats row - keep existing */}
         <div className="mt-4 flex items-center gap-4">
           <div className="flex items-center gap-2">
             <UserIcon className="h-5 w-5 text-gray-400" />
             <span className="text-sm text-gray-400">
-              {match.listenerCount} listeners
+              {match.podcast.listeners} listeners
             </span>
           </div>
           <div className="flex items-center gap-2">
             <StarIcon className="h-5 w-5 text-gray-400" />
-            <span className="text-sm text-gray-400">{match.rating}</span>
+            <span className="text-sm text-gray-400">
+              {match.podcast.rating}
+            </span>
           </div>
         </div>
 

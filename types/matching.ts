@@ -54,8 +54,8 @@ export interface MatchFilters {
   minScore?: number;
   minConfidence?: number;
   maxResults?: number;
-  topics?: string[];
   excludePodcastIds?: string[];
+  podcastIds?: string[];
 }
 
 /**
@@ -87,3 +87,14 @@ export const MATCH_WEIGHTS = {
  * Re-export MatchResult for backward compatibility
  */
 export type MatchResult = PodcastMatch;
+
+export interface UserPreferences {
+  topics: string[];
+  preferredLength: 'short' | 'medium' | 'long';
+  stylePreferences: {
+    isInterviewPreferred: boolean;
+    isStorytellingPreferred: boolean;
+    isEducationalPreferred: boolean;
+    isDebatePreferred: boolean;
+  };
+}
